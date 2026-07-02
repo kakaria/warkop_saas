@@ -21,7 +21,7 @@ class CustomUserManager(BaseUserManager):
 
 class User(AbstractUser):
     
-    objects = CustomUserManager()
+    objects = CustomUserManager() #type:ignore
     
     username = None
     email = models.EmailField(unique=True, max_length=255)

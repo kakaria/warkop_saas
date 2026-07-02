@@ -11,8 +11,8 @@ class Tenant(models.Model):
         return self.name
 
 class TenantMembership(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name='tenants')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='users' )
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name='memberships')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='memberships' )
     
     class Role(models.TextChoices):
         OWNER = "OWN", _("Owner"),
