@@ -1,11 +1,17 @@
 from django.db import models
 from decimal import Decimal
+from core.managers import StrictTenantManager
 
 class Order(models.Model):
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.PROTECT, related_name='orders')
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0.0))
 
+    # MANAGER SATPAM (Default)
+    objects = StrictTenantManager()
+    
+    # MANAGER PINTU BELAKANG (Bypass)
+    global_objects = models.Manager()
 
 class DetailOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='items')
