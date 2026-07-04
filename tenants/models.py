@@ -1,6 +1,10 @@
+from sre_constants import SUCCESS
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+
+from core.thread_local import set_current_tenant
 
 
 class Tenant(models.Model):
@@ -23,3 +27,6 @@ class TenantMembership(models.Model):
         max_length=3, 
         choices = Role.choices
     )
+    
+    
+
