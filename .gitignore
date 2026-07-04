@@ -5,4 +5,5 @@ __pycache__/
 .venv
 .env
 
+catetan_project.txt
 db.sqlite3
