@@ -138,3 +138,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
 
+# ==========CELERY & REDIS SETUP ================
+CELERY_BROKER_URL = 'rediss://default:gQAAAAAAAcOmAAIgcDEyYmVkMGNkZTUxZmU0ZTJlYjgyMzJiNjUyN2NkODI0MA@calm-sculpin-115622.upstash.io:6379'
+
+# isolasi antrian
+# ini yang cegah tugas SaaS nyasar ke project lain
+CELERY_TASK_DEFAULT_QUEUE = 'warkop-saas-queue'
+
+# format pesan (keamanan & kompabilitas)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+
+# zona waktu (samain kayak Django)
+CELERY_TIMEZONE = TIME_ZONE
