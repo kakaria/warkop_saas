@@ -13,7 +13,7 @@ class CustomUserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self.db)
         return user
-    def createsuperuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, password, **extra_fields)
@@ -21,10 +21,11 @@ class CustomUserManager(BaseUserManager):
 
 class User(AbstractUser):
     
-    objects = CustomUserManager() #type:ignore
     
     username = None
     email = models.EmailField(unique=True, max_length=255)
+    
+    objects = CustomUserManager() #type:ignore
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

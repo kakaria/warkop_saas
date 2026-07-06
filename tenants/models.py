@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+from core.managers import StrictTenantManager
 from core.thread_local import set_current_tenant
 
 
@@ -28,5 +29,7 @@ class TenantMembership(models.Model):
         choices = Role.choices
     )
     
+    objects = StrictTenantManager()
+    objects_global = models.Manager()
     
 

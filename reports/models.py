@@ -24,4 +24,6 @@ class Report(models.Model):
     objects = StrictTenantManager()
     objects_global = models.Manager()
     
+    def __str__(self):        
+        return f"Report {self.id} - {self.status}"    
     
