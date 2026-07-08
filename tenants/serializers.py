@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from tenants.models import TenantMembership 
+from .models import TenantMembership 
 from core.thread_local import get_current_tenant
 
 

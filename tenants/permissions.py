@@ -7,7 +7,7 @@ class IsTenantManager(BasePermission):
         BUAT MASTTIN ROLE USER YANG MASUK ADALAH MANAGER
     """
     def has_permission(self, request, view): 
-        # ambil requestnya dan cek apakah dia udah logisn 
+        # ambil requestnya dan cek apakah dia udah login 
         if not request.user.is_authenticated:
             return False       
         

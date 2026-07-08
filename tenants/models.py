@@ -17,7 +17,7 @@ class Tenant(models.Model):
 
 class TenantMembership(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name='memberships')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='memberships' )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='tenant_membership' )
     
     class Role(models.TextChoices):
         OWNER = "OWN", _("Owner"),
