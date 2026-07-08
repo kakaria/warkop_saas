@@ -33,5 +33,5 @@ class TenantUserViewSet(mixins.CreateModelMixin,
             return User.objects.none()
         
         # balikin, user object yang tenant_idnya sama kayak tenant_id thread_local
-        return User.objects.filter(tenant_memberships__tenant_id=tenant_id)
+        return User.objects.filter(tenant_memberships__tenant_id=tenant_id).prefetch_related('tenant_memberships') # prefetch_related untuk sekalian ngambil field Role (dari table TenantMembership)
         
