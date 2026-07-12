@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 from decouple import config
 
@@ -38,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     'rest_framework',
     'users',
     'tenants',
@@ -54,8 +55,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
-    
+
+
     'core.middleware.TenantMiddleware',
 ]
 
@@ -137,6 +138,28 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
+
+# ============= REST FRAMEWORK SETTINGS =========
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASESS': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+# ============ JWT SETTINGS =================
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATING': True,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': 'SECRET_KEY',
+
+    'AUTH_HEADER_TYPES': ('Bearer', )
+}
+
 
 # ==========CELERY & REDIS SETUP ================
 CELERY_BROKER_URL = 'rediss://default:gQAAAAAAAcOmAAIgcDEyYmVkMGNkZTUxZmU0ZTJlYjgyMzJiNjUyN2NkODI0MA@calm-sculpin-115622.upstash.io:6379'

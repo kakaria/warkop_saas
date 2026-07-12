@@ -1,37 +1,78 @@
-from rest_framework import viewsets, mixins
-from django.contrib.auth import get_user_model
-from .serializers import TenantUserSerializer
-from .permissions import IsTenantManager
-from core.thread_local import get_current_tenant
-import logging
+from rest_framework import permissions, status, views
+from rest_framework.response import Response
+
+from orders.permissions import IsTenantManagerOrOwner
+from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
+from tenants.services import (
+    public_onboarding_orchestrator,
+    staff_provising_orchestrator,
+)
 
 
-logger = logging.getLogger(__name__)
-# ambil real Model User
-User = get_user_model()
+class TenantRegisterView(views.APIView):
+    """
+    pintu gerbang public
+    untuk calon OWNER mau daftar Tenant baru
+    """
 
-# tujuan view ini, Manager bisa input user baru, GET sesuai tenant_id manager
-class TenantUserViewSet(mixins.CreateModelMixin,
-                        mixins.ListModelMixin,
-                        mixins.RetrieveModelMixin,
-                        viewsets.GenericViewSet):
-    # ambil serializer
-    serializer_class = TenantUserSerializer
-    
-    # pasang izin yang bisa liat User
-    permission_classes = [IsTenantManager] # bentukny harus list
-    
-    def get_queryset(self):
-        
-        # ambil tenant_id dari RAM (thread_local)
-        tenant_id = get_current_tenant()
-        
-        # bikin failsafe (kalo gak nemu tenant_id, balikin jadi None)
-        if tenant_id is None:
-            # kasih jejak digital ke yang lagi nyoba masuk
-            logger.warning("FAILSAFE TRIGGERED: tenant_id is None in TenantUserViewSet")
-            return User.objects.none()
-        
-        # balikin, user object yang tenant_idnya sama kayak tenant_id thread_local
-        return User.objects.filter(tenant_memberships__tenant_id=tenant_id).prefetch_related('tenant_memberships') # prefetch_related untuk sekalian ngambil field Role (dari table TenantMembership)
-        
+    # izin allowany (siapa aja boleh akses (GET) & daftar (POST))
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        # panggil serializer untuk registerOwner
+        serializer = TenantRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # hasil validasi kasih ke service layer
+        owner_user = public_onboarding_orchestrator(
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+            tenant_name=serializer.validated_data["tenant_name"],
+            tenant_address=serializer.validated_data["tenant_address"],
+        )
+
+        # kasih bukti berhasil ke frontend
+        return Response(
+            {
+                "message": "Tenant dan Akun Owner berhasil dibuat",
+                "data": {
+                    "email": owner_user.email,
+                    "tenant_name": serializer.validated_data["tenant_name"],
+                    "tenant_address": serializer.validated_data["tenant_address"],
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StaffProvisionView(views.APIView):
+    """
+    Pintu gerbang internal
+    untuk owner/manager nambahin staff baru (cashier/manager) ke tenant mereka
+    """
+
+    permission_classes = [IsTenantManagerOrOwner]
+
+    def post(self, request, *args, **kwargs):
+        # panggil serializer
+        serializer = StaffCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # panggil service (buat naro staff ke tenant saat ini)
+        staff_user = staff_provising_orchestrator(
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+            role=serializer.validated_data["role"],
+        )
+
+        # response
+        return Response(
+            {
+                "message": f"staf dengan role{serializer.validated_data['role']} berhasil ditambahkan",
+                "data": {
+                    "email": staff_user.email,
+                    "role": serializer.validated_data["role"],
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )

@@ -1,40 +1,40 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.db import transaction
-from .models import TenantMembership 
-from core.thread_local import get_current_tenant
 
+from tenants.models import TenantMembership
 
-# ambil table User
 User = get_user_model()
 
-class TenantUserSerializer(serializers.ModelSerializer):
-    
-    # ambil data dari request user (yang masukin data role)
-    role = serializers.CharField(write_only=True) # buat lolos validasi dan dimasukin ke role
-    
-    class Meta: # pengaturan (data dalam data)
-        model = User
-        fields = ['id', 'email', 'password', 'role'] # alur input & output
-        extra_kwargs = {'password': {'write_only': True}} # biar gak bisa di GET di frontend
-        
-    @transaction.atomic
-    def create(self, validated_data):
-        role_from_request = validated_data.pop('role', None) # ambil 'role' terus balikin None untuk cegah KeyError
-        password_from_request = validated_data.pop('password', None) 
-        
-        new_user = User(**validated_data) # unpacking dict dari serializer
-        new_user.set_password(password_from_request)
-        new_user.save() 
-        
-        # ambil tenant_id dari thread_local (loker)
-        tenant_id = get_current_tenant()
-        
-        # taro di TenantMembeship (karena kita bikin user baru dan role ada disana)
-        TenantMembership.objects.create(
-            tenant_id = tenant_id,
-            user_id = new_user, # ambil objectnya aja biar pythonic
-            role = role_from_request
-        )
-        return new_user
-    
+
+class TenantRegisterSerializer(serializers.Serializer):
+    """
+        SERIALIZER untuk validasi USER + TENANT
+        user pasti owner dan tenant akan baru
+    """
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    tenant_name = serializers.CharField(max_length=100)
+    tenant_address = serializers.CharField(max_length=100)
+
+    # validasi email
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists(): # pake .exist() biar cepet
+            raise serializers.ValidationError(f"email {value} udah terdaftar bro!")
+        return value
+
+
+class StaffCreateSerializer(serializers.Serializer):
+    """
+        SERIALIZER untuk VALIDASI USER baru
+        USER antara MANAGER atau CASHIER
+    """
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    role = serializers.ChoiceField(
+        choices=[TenantMembership.Role.MANAGER, TenantMembership.Role.CASHIER]
+    )
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(f"email staf {value} udah ada bro!")
+        return value

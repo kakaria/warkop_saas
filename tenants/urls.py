@@ -1,10 +1,10 @@
-from rest_framework.routers import DefaultRouter
 
-from .views import TenantUserViewSet
+from django.urls import path
 
-# gunain Routers (karena gua make ViewSet)
-router = DefaultRouter()
+from .views import StaffProvisionView, TenantRegisterView
 
-router.register(r"users", TenantUserViewSet, basename="tenant-user")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('register/', TenantRegisterView.as_view(), name='tenant_reqister'),
+    path('invite-member/', StaffProvisionView.as_view(), name='invite-members'),
+]

@@ -1,6 +1,13 @@
-from django.urls import path
-from .views import OrderListView
+from rest_framework.routers import DefaultRouter, SimpleRouter
+from django.conf import settings
+from .views import OrderViewSet
 
-urlpatterns = [
-    path('api/orders/', OrderListView.as_view(), name='order-list'),
-]
+
+if settings.DEBUG:
+    router = DefaultRouter()
+else: # kalo DEBUG = False, gak bisa liat root api
+    router = SimpleRouter()
+
+router.register(r"", OrderViewSet)
+
+urlpatterns = router.urls
