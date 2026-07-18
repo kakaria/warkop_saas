@@ -10,7 +10,7 @@ def create_user_account_service(*, email: str, password: str):
     user = User.objects.create_user(
         email=email,
         password=password
-    )
+    ) # type: ignore
 
     return user
 

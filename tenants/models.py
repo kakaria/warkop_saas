@@ -32,7 +32,7 @@ class TenantMembership(models.Model):
             "MNG",
             _("Manager"),
         )
-        CASHIER = "CSH", _("Cashier")
+        CASHIER = ("CSH", _("Cashier"))
 
     role = models.CharField(max_length=3, choices=Role.choices)
 

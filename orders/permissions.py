@@ -29,9 +29,13 @@ class IsTenantManagerOrOwner(BasePermission):
     """
 
     def has_permission(self, request, view):
+
+        # auth_header = request.META.get('HTTP_AUTHORIZATION')
+
+        # print(f"DEBUG HEADER YANG MASUK -> {auth_header}")
+
         # ambil requestnya cek apakah udah login
         if not request.user.is_authenticated:
-            print("hehe")
             return False
 
         # cek ke database
