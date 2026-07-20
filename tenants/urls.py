@@ -1,14 +1,13 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from tenants.serializers import TenantMemberDropdownSerializer
-
 from .views import (
     CustomLoginView,
     CustomTokenRefreshView,
     StaffMemberViewSet,
     StaffProvisionView,
     StaffRoleViewSet,
+    StaffViewSet,
     TenantMemberViewSet,
     TenantRegisterView,
 )
@@ -19,6 +18,7 @@ router = DefaultRouter()
 router.register(r"members", StaffMemberViewSet, basename="members")
 router.register(r"role-members", StaffRoleViewSet, basename="role-members")
 router.register(r"list-staff", TenantMemberViewSet, basename="list-staff")
+router.register(r"patch-staff", StaffViewSet, basename="patch-staff")
 
 
 urlpatterns = [

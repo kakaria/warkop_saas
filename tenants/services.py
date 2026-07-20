@@ -1,11 +1,14 @@
-from typing import Optional
+import logging
 
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 
 from tenants.models import Tenant, TenantMembership
 from users.models import User
 from users.services import create_user_account_service
+
+logger = logging.getLogger(__name__)
 
 
 def create_tenant_service(*, name: str, address: str) -> Tenant:
@@ -110,19 +113,94 @@ def get_user_tenant_claim_service(user) -> dict:
 #     return TenantMembership.objects.select_related("user")
 
 
-def get_tenant_members(
-    tenant_id: int, role: Optional[str]
+# service untuk ngambil data staff
+def get_membership_service(
+    tenant_id: int, role: str | None
 ) -> QuerySet[TenantMembership]:
-    """
-    Ambil semua membership di dalam tenant tertentu
-    """
+
+    # bikin querynya
     queryset = (
-        TenantMembership.objects.select_related("user", "tenant")
-        .filter(tenant_id=tenant_id)
-        .order_by("-id")
+        TenantMembership.objects.filter(tenant_id=tenant_id)
+        .select_related("user", "tenant")
+        .order_by("user")
     )
 
+    # kalo role diisi (cari berdasarkan role)
     if role:
         queryset = queryset.filter(role=role)
 
     return queryset
+
+
+@transaction.atomic
+def patch_staff_service(
+    actor: User, target_membership: TenantMembership, validated_data: dict
+):
+
+    # ambil key dari dict validated_data
+    new_role = validated_data.get("role")
+
+    # cek apakah apakah role yang dikirim or rolenya sama kayak target saat ini
+    if not new_role:
+        print("gak ada")
+        logger.info(
+            "Patch staff aborted: empty payload",
+            extra={
+                "event": "staff_patch_empty",
+                "actor_id": actor.id,
+                "target_id": target_membership.id,
+            },
+        )
+        return target_membership
+    if target_membership.role == new_role:
+        return target_membership
+
+    # ambil membership dari si user filter dengan tenant_id yang sama kayak targetmembership
+    try:
+        actor_membership = TenantMembership.objects.get(
+            tenant=target_membership.tenant, user=actor
+        )
+    except TenantMembership.DoesNotExist:
+        raise PermissionDenied("Anda bukan member di tenant ini")
+
+    # bisnis rule
+    # CEK KASIR GAK BOLEH GANTI (HARUSNYA UDAH SI DI PERMISSIONS.PY)
+    if actor_membership.role not in [
+        TenantMembership.Role.OWNER,
+        TenantMembership.Role.MANAGER,
+    ]:
+        raise PermissionDenied(
+            f"Mohon maaf, {actor_membership.role} anda tidak memiliki hak untuk melakukan itu🙇"
+        )
+
+    # buat variable, biar gak ngetik
+    is_self_edit = actor_membership.id == target_membership.id
+
+    # CEK untuk Manager
+    if actor_membership.role == TenantMembership.Role.MANAGER:
+        # inget! manager cuma bisa edit staff Kasir, jadi selain kasir tolak aja
+        if not is_self_edit and target_membership.role != TenantMembership.Role.CASHIER:
+            raise PermissionDenied("Anda manager, hanya bisa edit staff kasir")
+        # biar manager gak bisa edit dirinya sendiri (role)
+        if is_self_edit and new_role != target_membership.role:
+            raise PermissionDenied("Anda gak bisa edit role anda")
+        if not is_self_edit and new_role != TenantMembership.Role.CASHIER:
+            raise PermissionDenied("Anda cuma bisa angkat user jadi kasir")
+
+    # CEK untuk OWNER
+    if actor_membership.role == TenantMembership.Role.OWNER:
+        # cek kalo owner mau ngedit dirinya sendiri
+        if is_self_edit and new_role in [
+            TenantMembership.Role.MANAGER,
+            TenantMembership.Role.CASHIER,
+        ]:
+            raise PermissionDenied("Anda tidak boleh menurunkan jabatan anda sendiri")
+
+    # apply perubahan
+    for key, value in validated_data.items():
+        setattr(target_membership, key, value)
+
+    # simpen ke database, pake update_fields
+    target_membership.save(update_fields=list(validated_data.keys()))
+
+    return target_membership

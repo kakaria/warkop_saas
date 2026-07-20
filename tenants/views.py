@@ -5,10 +5,13 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
+from orders import serializers
 from orders.permissions import IsTenantManagerOrOwner
+from tenants.models import TenantMembership
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
 from tenants.services import (
-    get_tenant_members,
+    get_membership_service,
+    patch_staff_service,
     public_onboarding_orchestrator,
     staff_provising_orchestrator,
 )
@@ -17,9 +20,9 @@ from .serializers import (
     CustomTokenObatinPairSerializer,
     CustomTokenRefreshSerializer,
     StaffMemberSerializer,
+    StaffPatchSerializer,
     StaffRoleSerializer,
     TenantMemberDetailSerializer,
-    TenantMemberDropdownSerializer,
     TenantMemberFilterSerializer,
 )
 
@@ -136,31 +139,93 @@ class StaffRoleViewSet(viewsets.ReadOnlyModelViewSet):
         return get_user_role_list_service()
 
 
+# class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
+#     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
+
+#     serializer_class = TenantMemberDetailSerializer
+
+#     def get_queryset(self):
+
+#         filter_serializer = TenantMemberFilterSerializer(
+#             # ambil data dari url (?=role)
+#             data=self.request.query_params
+#         )
+
+#         # cek validasi si filter_serializer
+#         filter_serializer.is_valid(raise_exception=True)
+
+#         role = filter_serializer.validated_data.get("role")
+
+#         return get_tenant_members(tenant_id=get_current_tenant(), role=role)
+
+#     def get_serializer_class(self):
+#         if self.action == "dropdown":
+#             return TenantMemberDropdownSerializer
+#         return TenantMemberDetailSerializer
+
+#     @action(detail=False, methods=["get"])
+#     def dropdown(self, request):
+#         # self.list otomatis manggil get_queryset() dan get_serializer_class
+#         return self.list(request)
+
+
 class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
+
+    # panggil permission
     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
 
+    # panggil serializer
     serializer_class = TenantMemberDetailSerializer
+
+    # override
+    def get_queryset(self):
+        # panggil serializer buat filter parameter
+        filter_serializer = TenantMemberFilterSerializer(
+            data=self.request.query_params  # ambil data dari input url (?=role)
+        )
+        # udah dapet datanya, kita validasi
+        filter_serializer.is_valid(raise_exception=True)
+
+        # baca value role dari filter_serializer
+        role = filter_serializer.validated_data.get("role")
+
+        # panggil si service
+        return get_membership_service(tenant_id=get_current_tenant(), role=role)
+
+
+class StaffViewSet(viewsets.ModelViewSet):
+
+    # pasang permission
+    permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
+
+    # pasang serializer
+    serializer_class = StaffPatchSerializer
 
     def get_queryset(self):
 
-        filter_serializer = TenantMemberFilterSerializer(
-            # ambil data dari url (?=role)
-            data=self.request.query_params
+        return TenantMembership.objects.filter(tenant=get_current_tenant())
+
+    def partial_update(self, request, *args, **kwargs):
+        # 1. Ambil object target
+        target_membership = self.get_object()
+
+        # 2. Validasi request
+        serializer = self.get_serializer(
+            target_membership,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # 3. Panggil service
+        updated_membership = patch_staff_service(
+            actor=request.user,
+            target_membership=target_membership,
+            validated_data=serializer.validated_data,
         )
 
-        # cek validasi si filter_serializer
-        filter_serializer.is_valid(raise_exception=True)
+        # 4. Serializer untuk response
+        response_serializer = TenantMemberDetailSerializer(updated_membership)
 
-        role = filter_serializer.validated_data.get("role")
-
-        return get_tenant_members(tenant_id=get_current_tenant(), role=role)
-
-    def get_serializer_class(self):
-        if self.action == "dropdown":
-            return TenantMemberDropdownSerializer
-        return TenantMemberDetailSerializer
-
-    @action(detail=False, methods=["get"])
-    def dropdown(self, request):
-        # self.list otomatis manggil get_queryset() dan get_serializer_class
-        return self.list(request)
+        # 5. Return response
+        return Response(response_serializer.data)

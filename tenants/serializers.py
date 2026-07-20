@@ -1,5 +1,3 @@
-from importlib.util import source_from_cache
-
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import (
@@ -139,32 +137,35 @@ class StaffRoleSerializer(serializers.ModelSerializer):
         read_only_fields = ["email", "role"]
 
 
-class TenantMemberDetailSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(source="user.email", read_only=True)
-    tenant_name = serializers.CharField(
-        source="tenant.name", read_only=True
-    )  # ini sebenernya bisa diapus, karena kan ini 1 tenant (id=tenant_id dari middleware)
-    
-    class Meta:
-        model = TenantMembership
-        fields = ["id", "email", "tenant_name", "role"]
-
-
-# ini buat ngasih less detail data yang diperluin
-class TenantMemberDropdownSerializer(serializers.ModelSerializer):
-    label = serializers.EmailField(source="user.email", read_only=True)
-    value = serializers.IntegerField(source="user.id", read_only=True)
-
-    class Meta:
-        model = TenantMembership
-        fields = ["value", "label", "role"]
-
-
-# serializer untuk filter data field
-class TenantMemberFilterSerializer(serializers.Serializer):
+class TenantMemberFilterSerializer(
+    serializers.Serializer
+):  # buat validasi filter parameter
     role = serializers.ChoiceField(
         choices=TenantMembership.Role.choices,
         required=False,
     )
 
 
+# validasi data yang dikirim dan yagn bakal ditampilin
+class TenantMemberDetailSerializer(serializers.ModelSerializer):
+
+    # ambil field yang bukan dari table TenantMembership
+    email = serializers.EmailField(source="user.email", read_only=True)
+    user_full_name = serializers.CharField(source="user.full_name", read_only=True)
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    tenant_name = serializers.CharField(source="tenant.name", read_only=True)
+
+    class Meta:
+        model = TenantMembership
+        fields = ["id", "user_id", "user_full_name", "email", "tenant_name", "role"]
+
+
+# SERIALIZER UNTUK PATCH
+class StaffPatchSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(
+        required=False, choices=TenantMembership.Role.choices
+    )
+
+    class Meta:
+        model = TenantMembership
+        fields = ["role"]
