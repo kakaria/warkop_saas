@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.managers import StrictTenantManager
+from core.managers import ActiveMembershipManager
 
 
 class Tenant(models.Model):
@@ -35,6 +35,7 @@ class TenantMembership(models.Model):
         CASHIER = ("CSH", _("Cashier"))
 
     role = models.CharField(max_length=3, choices=Role.choices)
+    left_at = models.DateTimeField(blank=True, null=True)
 
-    objects = StrictTenantManager()
+    objects = ActiveMembershipManager()
     objects_global = models.Manager()

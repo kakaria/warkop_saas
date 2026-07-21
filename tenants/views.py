@@ -1,11 +1,10 @@
-from rest_framework import permissions, status, views, viewsets
+from rest_framework import generics, mixins, permissions, status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
-from orders import serializers
 from orders.permissions import IsTenantManagerOrOwner
 from tenants.models import TenantMembership
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
@@ -229,3 +228,43 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         # 5. Return response
         return Response(response_serializer.data)
+
+
+# ini class gak jadi dipake
+# class ProfileViewSet(mixins.RetrieveModelMixin,
+#                      mixins.UpdateModelMixin,
+#                      viewsets.GenericViewSet):
+
+#     permission_classes = [IsAuthenticated]
+
+#     serializer_class = ProfilePatchSerializer
+
+#     # override
+#     def get_object(self):
+#         return self.request.user # ambil object user yang lagi login
+
+#     def partial_update(self, request, *args, **kwargs):
+
+#         # ambil object user
+#         user = self.get_object()
+
+#         # validasi request
+#         serializer = self.get_serializer(
+#             user,
+#             data=request.data,
+#             partial=True
+#         )
+
+#         serializer.is_valid(raise_exception=True)
+
+#         # panggil service
+#         updated_user = patch_user_service(
+#             user=user,
+#             validated_data=serializer.validated_data
+#         )
+
+#         # panggil serializer untuk response
+#         response_serializer = ProfileDetailSerializer(updated_user)
+
+#         return Response(response_serializer.data)
+

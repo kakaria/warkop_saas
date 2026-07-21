@@ -169,3 +169,5 @@ class StaffPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantMembership
         fields = ["role"]
+
+
