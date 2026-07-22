@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CustomLoginView,
     CustomTokenRefreshView,
+    RemoveMemberView,
     StaffMemberViewSet,
     StaffProvisionView,
     StaffRoleViewSet,
@@ -26,5 +27,6 @@ urlpatterns = [
     path("invite-member/", StaffProvisionView.as_view(), name="invite-members"),
     path("login/", CustomLoginView.as_view(), name="login"),
     path("refresh/", CustomTokenRefreshView.as_view(), name="refresh"),
+    path("remove/<int:pk>/", RemoveMemberView.as_view(), name="remove"),
     path("", include(router.urls)),
 ]

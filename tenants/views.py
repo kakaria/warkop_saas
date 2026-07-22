@@ -1,7 +1,9 @@
-from rest_framework import generics, mixins, permissions, status, views, viewsets
-from rest_framework.decorators import action
+from django.shortcuts import get_object_or_404
+from rest_framework import permissions, status, views, viewsets
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
@@ -9,9 +11,11 @@ from orders.permissions import IsTenantManagerOrOwner
 from tenants.models import TenantMembership
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
 from tenants.services import (
+    current_active_membership,
     get_membership_service,
     patch_staff_service,
     public_onboarding_orchestrator,
+    remove_member_from_tenant_service,
     staff_provising_orchestrator,
 )
 
@@ -194,6 +198,8 @@ class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
 
 class StaffViewSet(viewsets.ModelViewSet):
 
+    # ADA BUG DI URL PATCH-STAFF, KALO PAKE PUT DAN ADA PKNYA KELUAR ROLE DARI SI TENANTMEMBERSHIP ITUU
+
     # pasang permission
     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
 
@@ -268,3 +274,31 @@ class StaffViewSet(viewsets.ModelViewSet):
 
 #         return Response(response_serializer.data)
 
+
+class RemoveMemberView(APIView):
+    permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
+
+    # override
+    def delete(self, request, pk, format=None):
+        # ambil object target
+        target_membership = get_object_or_404(
+            TenantMembership, id=pk, tenant_id=get_current_tenant(), left_at=None
+        )
+
+        # ambil object actor (pake service mini)
+        try:
+            actor_membership = current_active_membership(
+                user=request.user,
+                tenant_id=get_current_tenant(),
+            )
+            print(actor_membership)
+        except TenantMembership.DoesNotExist:
+            raise NotFound("Membership tidak ditemukan")
+
+        # panggil service
+        remove_member_from_tenant_service(
+            actor_membership_id=actor_membership.id,
+            target_membership_id=target_membership.id,
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

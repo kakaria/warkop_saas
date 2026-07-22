@@ -1,8 +1,10 @@
 import logging
 
+from amqp import NotFound
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import QuerySet
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from tenants.models import Tenant, TenantMembership
@@ -94,6 +96,7 @@ def get_user_tenant_claim_service(user) -> dict:
             "tenant_id": str(membership.tenant.id),
             "tenant_name": membership.tenant.name,
             "role": membership.role,
+            "left_at": membership.left_at,
         }
 
     return {"tenant_id": None, "tenant_name": None, "role": None}
@@ -207,55 +210,83 @@ def patch_staff_service(
     return target_membership
 
 
-def remove_user_from_tenant_service(
-    actor_membership: TenantMembership, target_membership: TenantMembership
+def remove_member_from_tenant_service(
+    actor_membership_id: int, target_membership_id: int
 ) -> None:  # karena delete gak ngembaliin apapun
 
-    # cek actor masih aktif
-    if actor_membership.left_at is not None:
-        raise PermissionDenied("maaf, anda bukan member di tenant ini lagi")
+    with transaction.atomic():
 
-    # cek target masih aktif
-    if target_membership.left_at is not None:
-        raise PermissionDenied("maaf anda bukan member di tenant ini lagi")
+        # ambil actor_membership (pake get() karena kita ngambil berdasarkan id membership)
+        try:
+            actor_membership = TenantMembership.objects.select_related(
+                "user", "tenant"
+            ).get(id=actor_membership_id)
 
-    # cek apakah aktor dan target satu tenant
-    if target_membership.tenant_id != actor_membership.tenant_id:
-        raise PermissionDenied("Maaf ternyata kalian beda tenant")
+        except TenantMembership.DoesNotExist:
+            raise NotFound("Maaf member ini tidak ditemukan")
 
-    # cek bisnis rule
-    is_delete_self = actor_membership.id == target_membership.id
-
-    # cek OWNER
-    if actor_membership.role == TenantMembership.Role.OWNER:
-        # OWNER gak bisa apus dirinya sendiri
-        if is_delete_self:
-            raise PermissionDenied("Sebagai Owner, tidak bisa hapus diri anda sendiri")
-        # Owner gak bisa apus OWNER LAIN
-        if target_membership.role == TenantMembership.Role.OWNER:
-            raise PermissionDenied(
-                "Sebagai Owner, anda tidak bisa menghapus owner lain"
+        # ambil target_membership
+        try:
+            target_membership = TenantMembership.objects.select_for_update().get(
+                id=target_membership_id
             )
 
-    # cek Manager
-    if actor_membership.role == TenantMembership.Role.MANAGER:
-        # MANAGER gak bisa apus dirinya sendiri
-        if is_delete_self:
-            raise PermissionDenied(
-                "Anda sebagai Manager, tidak bisa hapus diri anda sendiri"
-            )
-        # kalo mau apus owner
-        if target_membership.role == TenantMembership.Role.OWNER:
-            raise PermissionDenied("Anda sebagai Manager, tidak bisa menghapus Owner")
-        # kalo mau apus sesama manager
-        if target_membership.role == TenantMembership.Role.MANAGER:
-            raise PermissionDenied(
-                "Anda sebagai Manager, tidak bisa menghapus sesama Manager"
-            )
+        except TenantMembership.DoesNotExist:
+            raise NotFound("Maaf member ini tidak ditemukan")
 
-    # apply perubahan (soft delete)
-    target_membership.left_at = timezone.now()
-    target_membership.save(update_fields=["left_at"])
+        # cek udah dipecat apa belom
+        if actor_membership.left_at is not None:
+            raise PermissionDenied("Maaf kamu sudah dipecat")
 
-    # response
-    return None
+        if target_membership.left_at is not None:
+            raise PermissionDenied("Maaf kamu sudah dipecat")
+
+        # cek apakah aktor dan target satu tenant
+        if target_membership.tenant_id != actor_membership.tenant_id:
+            raise PermissionDenied("Maaf ternyata kalian beda tenant")
+
+        # cek bisnis rule
+        is_delete_self = actor_membership.user_id == target_membership.user_id
+
+        # cek OWNER
+        if actor_membership.role == TenantMembership.Role.OWNER:
+            # OWNER gak bisa apus dirinya sendiri
+            if is_delete_self:
+                raise PermissionDenied(
+                    "Sebagai Owner, tidak bisa hapus diri anda sendiri"
+                )
+            # Owner gak bisa apus OWNER LAIN
+            if target_membership.role == TenantMembership.Role.OWNER:
+                raise PermissionDenied(
+                    "Sebagai Owner, anda tidak bisa menghapus owner lain"
+                )
+
+        # cek Manager
+        if actor_membership.role == TenantMembership.Role.MANAGER:
+            # MANAGER gak bisa apus dirinya sendiri
+            if is_delete_self:
+                raise PermissionDenied(
+                    "Anda sebagai Manager, tidak bisa hapus diri anda sendiri"
+                )
+            # kalo mau apus owner
+            if target_membership.role == TenantMembership.Role.OWNER:
+                raise PermissionDenied(
+                    "Anda sebagai Manager, tidak bisa menghapus Owner"
+                )
+            # kalo mau apus sesama manager
+            if target_membership.role == TenantMembership.Role.MANAGER:
+                raise PermissionDenied(
+                    "Anda sebagai Manager, tidak bisa menghapus sesama Manager"
+                )
+
+        # apply perubahan (soft delete)
+        target_membership.left_at = timezone.now()
+        target_membership.save(update_fields=["left_at"])
+
+        # response
+        return None
+
+
+# service kecil untuk ambil object membership yang aktif
+def current_active_membership(user: User, tenant_id: int):
+    return TenantMembership.objects.get(tenant_id=tenant_id, user=user)
