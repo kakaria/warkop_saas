@@ -1,0 +1,2 @@
+class BussinessRuleViolation(Exception):
+    pass

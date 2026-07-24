@@ -21,6 +21,7 @@ class TenantRegisterSerializer(serializers.Serializer):
     # validasi field user yang masuk
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
+    full_name = serializers.CharField(max_length=255)
 
     # validasi tenant yang masuk
     tenant_name = serializers.CharField(max_length=100)
@@ -45,6 +46,7 @@ class StaffCreateSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
+    full_name = serializers.CharField(max_length=255)
     role = serializers.ChoiceField(
         choices=[TenantMembership.Role.MANAGER, TenantMembership.Role.CASHIER]
     )
@@ -151,13 +153,13 @@ class TenantMemberDetailSerializer(serializers.ModelSerializer):
 
     # ambil field yang bukan dari table TenantMembership
     email = serializers.EmailField(source="user.email", read_only=True)
-    user_full_name = serializers.CharField(source="user.full_name", read_only=True)
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     tenant_name = serializers.CharField(source="tenant.name", read_only=True)
 
     class Meta:
         model = TenantMembership
-        fields = ["id", "user_id", "user_full_name", "email", "tenant_name", "role"]
+        fields = ["id", "user_id", "full_name", "email", "tenant_name", "role"]
 
 
 # SERIALIZER UNTUK PATCH
@@ -169,5 +171,3 @@ class StaffPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantMembership
         fields = ["role"]
-
-

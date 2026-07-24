@@ -48,6 +48,7 @@ class TenantRegisterView(views.APIView):
         owner_user = public_onboarding_orchestrator(
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
+            full_name=serializer.validated_data["full_name"],
             tenant_name=serializer.validated_data["tenant_name"],
             tenant_address=serializer.validated_data["tenant_address"],
         )
@@ -58,6 +59,7 @@ class TenantRegisterView(views.APIView):
                 "message": "Tenant dan Akun Owner berhasil dibuat",
                 "data": {
                     "email": owner_user.email,
+                    "full_name": owner_user.full_name,
                     "tenant_name": serializer.validated_data["tenant_name"],
                     "tenant_address": serializer.validated_data["tenant_address"],
                 },
@@ -87,6 +89,7 @@ class StaffProvisionView(views.APIView):
         staff_user = staff_provising_orchestrator(
             email=data["email"],
             password=data["password"],
+            full_name=data["full_name"],
             role=data["role"],
             current_tenant_id=tenant_id,
         )
@@ -97,6 +100,7 @@ class StaffProvisionView(views.APIView):
                 "message": f"staf dengan role{data['role']} berhasil ditambahkan",
                 "data": {
                     "email": staff_user.email,
+                    "full_name": staff_user.full_name,
                     "role": data["role"],
                 },
             },

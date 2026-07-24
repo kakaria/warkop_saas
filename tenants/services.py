@@ -1,12 +1,10 @@
 import logging
 
-from amqp import NotFound
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import QuerySet
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
-
+from core.exceptions import BussinessRuleViolation
 from tenants.models import Tenant, TenantMembership
 from users.models import User
 from users.services import create_user_account_service
@@ -33,14 +31,18 @@ def assign_user_to_tenant_service(
 
 @transaction.atomic
 def public_onboarding_orchestrator(
-    email: str, password: str, tenant_name: str, tenant_address: str
+    email: str, password: str, full_name: str, tenant_name: str, tenant_address: str
 ) -> User:
     """
     buat NYATUIN USER, TENANT, dan TENANTMEMBERSHIP
     """
 
     # bikin users
-    new_user = create_user_account_service(email=email, password=password)
+    new_user = create_user_account_service(
+        email=email,
+        password=password,
+        full_name=full_name,
+    )
 
     # bikin tenant dari user diatas
     new_tenant = create_tenant_service(name=tenant_name, address=tenant_address)
@@ -57,7 +59,7 @@ def public_onboarding_orchestrator(
 
 @transaction.atomic
 def staff_provising_orchestrator(
-    email: str, password: str, role: str, current_tenant_id: int
+    email: str, password: str, full_name: str, role: str, current_tenant_id: int
 ) -> User:
     """
     untuk OWNER NAMBAHIN anak buah ke WARKOP
@@ -71,7 +73,9 @@ def staff_provising_orchestrator(
     tenant_obj = Tenant.objects.get(id=current_tenant_id)
 
     # bikin usernya dulu
-    staff_user = create_user_account_service(email=email, password=password)
+    staff_user = create_user_account_service(
+        email=email, password=password, full_name=full_name
+    )
 
     # taro staff_user di tenant yang sesuai
     assign_user_to_tenant_service(user=staff_user, tenant=tenant_obj, role=role)
@@ -216,6 +220,9 @@ def remove_member_from_tenant_service(
 
     with transaction.atomic():
 
+        print(actor_membership_id)
+        print(target_membership_id)
+
         # ambil actor_membership (pake get() karena kita ngambil berdasarkan id membership)
         try:
             actor_membership = TenantMembership.objects.select_related(
@@ -223,7 +230,7 @@ def remove_member_from_tenant_service(
             ).get(id=actor_membership_id)
 
         except TenantMembership.DoesNotExist:
-            raise NotFound("Maaf member ini tidak ditemukan")
+            raise BussinessRuleViolation("Maaf member ini tidak ditemukan")
 
         # ambil target_membership
         try:
@@ -232,7 +239,16 @@ def remove_member_from_tenant_service(
             )
 
         except TenantMembership.DoesNotExist:
-            raise NotFound("Maaf member ini tidak ditemukan")
+            raise BussinessRuleViolation("Maaf member ini tidak ditemukan")
+
+        # cek apakah dia selain owner dan manager
+        if actor_membership.role not in [
+            TenantMembership.Role.OWNER,
+            TenantMembership.Role.MANAGER,
+        ]:
+            raise PermissionDenied(
+                "Maaf anda tidak punya hak untuk memecat member lain"
+            )
 
         # cek udah dipecat apa belom
         if actor_membership.left_at is not None:
