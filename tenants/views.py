@@ -20,6 +20,7 @@ from tenants.services import (
 )
 
 from .serializers import (
+    AdminTenantMemberDetailSerializer,
     CustomTokenObatinPairSerializer,
     CustomTokenRefreshSerializer,
     StaffMemberSerializer,
@@ -83,15 +84,21 @@ class StaffProvisionView(views.APIView):
 
         data = serializer.validated_data
 
-        tenant_id = get_current_tenant()
+        # ambil membership dari user yang lagi login
+        actor = current_active_membership(
+            user=request.user,
+            tenant_id=get_current_tenant(),
+        )
+        print(actor.id)
 
         # panggil service (buat naro staff ke tenant saat ini)
         staff_user = staff_provising_orchestrator(
+            actor_membership=actor,
             email=data["email"],
             password=data["password"],
             full_name=data["full_name"],
             role=data["role"],
-            current_tenant_id=tenant_id,
+            current_tenant_id=get_current_tenant(),
         )
 
         # response
@@ -121,16 +128,13 @@ class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
 
-class StaffMemberViewSet(viewsets.ReadOnlyModelViewSet):
-    # pasang permission
-    permission_classes = [IsTenantManagerOrOwner]
+class AdminViewMember(viewsets.ReadOnlyModelViewSet):
 
-    # panggil serializer
-    serializer_class = StaffMemberSerializer
+    serializer_class = AdminTenantMemberDetailSerializer
 
     # override function
     def get_queryset(self):
-        return get_tenant_staff_list_service()
+        return TenantMembership.objects_global.all()
 
 
 class StaffRoleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -144,36 +148,6 @@ class StaffRoleViewSet(viewsets.ReadOnlyModelViewSet):
     # override function
     def get_queryset(self):
         return get_user_role_list_service()
-
-
-# class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
-#     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
-
-#     serializer_class = TenantMemberDetailSerializer
-
-#     def get_queryset(self):
-
-#         filter_serializer = TenantMemberFilterSerializer(
-#             # ambil data dari url (?=role)
-#             data=self.request.query_params
-#         )
-
-#         # cek validasi si filter_serializer
-#         filter_serializer.is_valid(raise_exception=True)
-
-#         role = filter_serializer.validated_data.get("role")
-
-#         return get_tenant_members(tenant_id=get_current_tenant(), role=role)
-
-#     def get_serializer_class(self):
-#         if self.action == "dropdown":
-#             return TenantMemberDropdownSerializer
-#         return TenantMemberDetailSerializer
-
-#     @action(detail=False, methods=["get"])
-#     def dropdown(self, request):
-#         # self.list otomatis manggil get_queryset() dan get_serializer_class
-#         return self.list(request)
 
 
 class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
@@ -238,45 +212,6 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         # 5. Return response
         return Response(response_serializer.data)
-
-
-# ini class gak jadi dipake
-# class ProfileViewSet(mixins.RetrieveModelMixin,
-#                      mixins.UpdateModelMixin,
-#                      viewsets.GenericViewSet):
-
-#     permission_classes = [IsAuthenticated]
-
-#     serializer_class = ProfilePatchSerializer
-
-#     # override
-#     def get_object(self):
-#         return self.request.user # ambil object user yang lagi login
-
-#     def partial_update(self, request, *args, **kwargs):
-
-#         # ambil object user
-#         user = self.get_object()
-
-#         # validasi request
-#         serializer = self.get_serializer(
-#             user,
-#             data=request.data,
-#             partial=True
-#         )
-
-#         serializer.is_valid(raise_exception=True)
-
-#         # panggil service
-#         updated_user = patch_user_service(
-#             user=user,
-#             validated_data=serializer.validated_data
-#         )
-
-#         # panggil serializer untuk response
-#         response_serializer = ProfileDetailSerializer(updated_user)
-
-#         return Response(response_serializer.data)
 
 
 class RemoveMemberView(APIView):

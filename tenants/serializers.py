@@ -171,3 +171,25 @@ class StaffPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantMembership
         fields = ["role"]
+
+
+class AdminTenantMemberDetailSerializer(serializers.ModelSerializer):
+
+    # ambil field yang bukan dari table TenantMembership
+    email = serializers.EmailField(source="user.email", read_only=True)
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    tenant_name = serializers.CharField(source="tenant.name", read_only=True)
+    tenant_id = serializers.IntegerField(source="tenant.id", read_only=True)
+
+    class Meta:
+        model = TenantMembership
+        fields = [
+            "id",
+            "user_id",
+            "full_name",
+            "email",
+            "tenant_id",
+            "tenant_name",
+            "role",
+        ]

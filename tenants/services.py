@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
+
 from core.exceptions import BussinessRuleViolation
 from tenants.models import Tenant, TenantMembership
 from users.models import User
@@ -59,15 +60,31 @@ def public_onboarding_orchestrator(
 
 @transaction.atomic
 def staff_provising_orchestrator(
-    email: str, password: str, full_name: str, role: str, current_tenant_id: int
+    actor_membership: TenantMembership,
+    email: str,
+    password: str,
+    full_name: str,
+    role: str,
+    current_tenant_id: int,
 ) -> User:
     """
-    untuk OWNER NAMBAHIN anak buah ke WARKOP
-    bisa MANAGER dan CASHIER
+    for assign new member to tenant
     """
 
     if not current_tenant_id:
         raise ValueError("Tenant tidak ditemukan di context!")
+
+    # selain owner & manager, tendang
+    if actor_membership.role not in [
+        TenantMembership.Role.OWNER,
+        TenantMembership.Role.MANAGER,
+    ]:
+        raise PermissionDenied("Maaf, kamu tidak bisa membuat member baru")
+
+    # kalo actor_membership is Manager (cuma bisa bikin kasir)
+    if actor_membership.role == TenantMembership.Role.MANAGER:
+        if role != TenantMembership.Role.CASHIER:
+            raise PermissionDenied("Maaf, Manager hanya bisa membuat member Kasir")
 
     # ambil object Tenant
     tenant_obj = Tenant.objects.get(id=current_tenant_id)
@@ -104,21 +121,6 @@ def get_user_tenant_claim_service(user) -> dict:
         }
 
     return {"tenant_id": None, "tenant_name": None, "role": None}
-
-
-# def get_tenant_staff_list_service() -> (
-#     QuerySet[TenantMembership]
-# ):  # ngembaliin kumpulan object TenantMembership
-#     """
-#     LIAT DAFTAR STAFF yang ada pada tenant yang aktif
-#     """
-
-#     return TenantMembership.objects.select_related("user")
-
-
-# def get_user_role_list_service() -> QuerySet[TenantMembership]:
-
-#     return TenantMembership.objects.select_related("user")
 
 
 # service untuk ngambil data staff
