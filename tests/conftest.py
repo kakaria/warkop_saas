@@ -111,3 +111,15 @@ def valid_onboarding_payload():
         "tenant_name": "good tenant",
         "tenant_address": "st. dont be fraud",
     }
+
+
+@pytest.fixture
+def staff_payload(owner_membership_a):
+    return {
+        "actor_membership": owner_membership_a,
+        "email": "test01@me.me",
+        "password": "don'ttestmebro!",
+        "full_name": "how are you?",
+        "role": TenantMembership.Role.MANAGER,
+        "current_tenant_id": owner_membership_a.tenant_id,
+    }
