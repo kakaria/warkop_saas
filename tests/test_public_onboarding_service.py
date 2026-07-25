@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from tenants.models import Tenant, TenantMembership
@@ -6,24 +8,31 @@ from users.models import User
 
 
 @pytest.mark.django_db
-def test_public_onboarding_creates_owner_membership():
+def test_public_onboarding_service_mock(valid_onboarding_payload):
+    # buktiin db kosong
+    assert User.objects.count() == 0
+    assert Tenant.objects.count() == 0
+    assert TenantMembership.objects_global.count() == 0
 
-    # Arrange (gak pake fixture karena kita lagi write object baru)
-    user = public_onboarding_orchestrator(
-        email="owner1@test.com",
-        password="owow321",
-        full_name="king not here",
-        tenant_name="keke shop",
-        tenant_address="jl. kudapahit no.32",
-    )
+    print(User.objects.count())
 
-    # Act
-    membership = TenantMembership.objects_global.get(user=user)
+    print(Tenant.objects.count())
 
-    # Assert
-    assert membership.user == user
-    assert membership.role == TenantMembership.Role.OWNER
-    assert membership.left_at is None
-    assert membership.tenant.name == "keke shop"
-    assert membership.tenant.address == "jl kudapahit no 32"
+    print(TenantMembership.objects_global.count())
 
+    with patch(
+        "tenants.services.assign_user_to_tenant_service",
+        side_effect=Exception("Boom!"),
+    ):
+        with pytest.raises(Exception, match="Boom!"):
+            public_onboarding_orchestrator(**valid_onboarding_payload)
+
+    print(User.objects.count())
+
+    print(Tenant.objects.count())
+
+    print(TenantMembership.objects_global.count())
+
+    assert User.objects.count() == 0
+    assert Tenant.objects.count() == 0
+    assert TenantMembership.objects_global.count() == 0

@@ -35,7 +35,7 @@ def public_onboarding_orchestrator(
     email: str, password: str, full_name: str, tenant_name: str, tenant_address: str
 ) -> User:
     """
-    buat NYATUIN USER, TENANT, dan TENANTMEMBERSHIP
+    create new Owner, Tenant, and connect them to TenantMembership
     """
 
     # bikin users
@@ -199,7 +199,7 @@ def patch_staff_service(
 
     # CEK untuk OWNER
     if actor_membership.role == TenantMembership.Role.OWNER:
-        # cek kalo owner mau ngedit dirinya sendiri
+        # cek kalo owner mau ngedit dirinya sendiri 
         if is_self_edit and new_role in [
             TenantMembership.Role.MANAGER,
             TenantMembership.Role.CASHIER,

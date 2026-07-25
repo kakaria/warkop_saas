@@ -29,7 +29,7 @@ def owner_user():  # karena pake custom manager, jadinya pake create_user
 
 
 @pytest.fixture
-def owner_membership(
+def owner_membership_a(
     tenantA, owner_user
 ):  # gak perlu pake role bla bla bla, karena testnya jelas test_owner_delete_cashier
     return TenantMembership.objects.create(
@@ -60,9 +60,9 @@ def cashier_user():  # karena pake custom manager, jadinya pake create_user
 
 
 @pytest.fixture
-def cashier_membership(tenant, cashier_user):
+def cashier_membership(tenantA, cashier_user):
     return TenantMembership.objects.create(
-        tenant=tenant,
+        tenant=tenantA,
         user=cashier_user,
         role=TenantMembership.Role.CASHIER,
         left_at=None,
@@ -97,3 +97,17 @@ def tenant_context():
     yield _set  # berhenti dulu, dan kasih _set ke yang manggil fixture
 
     clear_thread_local()
+
+
+@pytest.fixture
+def valid_onboarding_payload():
+    """
+    dict isi data user dan tenant
+    """
+    return {
+        "email": "test01@me.me",
+        "password": "don'ttestmebro!",
+        "full_name": "how are you?",
+        "tenant_name": "good tenant",
+        "tenant_address": "st. dont be fraud",
+    }
