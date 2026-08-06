@@ -32,7 +32,6 @@ class ProductTenantManager(models.Manager):
         queryset = super().get_queryset()
 
         if tenant_id is None:
-            # opsional: kalo gak ada tenant, kasih yang product global aja
-            return queryset.filter(tenant__isnull=True)
-        #  pake OR: ambil product local (yang sesuai tenant_id) ATAU product global (tenant_nya null)
-        return queryset.filter(Q(tenant_id=tenant_id) | Q(tenant__isnull=True))
+            return queryset.none()
+
+        return queryset.filter(tenant_id=tenant_id, is_archived=False)
