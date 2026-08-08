@@ -11,7 +11,7 @@ from orders.permissions import IsTenantManagerOrOwner
 from tenants.models import TenantMembership
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
 from tenants.services import (
-    current_active_membership,
+    get_current_active_membership,
     get_membership_service,
     patch_staff_service,
     public_onboarding_orchestrator,
@@ -85,7 +85,7 @@ class StaffProvisionView(views.APIView):
         data = serializer.validated_data
 
         # ambil membership dari user yang lagi login
-        actor = current_active_membership(
+        actor = get_current_active_membership(
             user=request.user,
             tenant_id=get_current_tenant(),
         )

@@ -1,13 +1,8 @@
-from rest_framework.routers import DefaultRouter, SimpleRouter
 from django.conf import settings
-from .views import OrderViewSet
+from django.urls import path
 
+from .views import OrderCreateAPIView
 
-if settings.DEBUG:
-    router = DefaultRouter()
-else: # kalo DEBUG = False, gak bisa liat root api
-    router = SimpleRouter()
-
-router.register(r"", OrderViewSet)
-
-urlpatterns = router.urls
+urlpatterns = [
+    path("", OrderCreateAPIView.as_view(), name="create-orders"),
+]

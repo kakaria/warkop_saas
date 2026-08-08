@@ -199,7 +199,7 @@ def patch_staff_service(
 
     # CEK untuk OWNER
     if actor_membership.role == TenantMembership.Role.OWNER:
-        # cek kalo owner mau ngedit dirinya sendiri 
+        # cek kalo owner mau ngedit dirinya sendiri
         if is_self_edit and new_role in [
             TenantMembership.Role.MANAGER,
             TenantMembership.Role.CASHIER,
@@ -305,6 +305,14 @@ def remove_member_from_tenant_service(
         return None
 
 
-# service kecil untuk ambil object membership yang aktif
-def current_active_membership(user: User, tenant_id: int):
-    return TenantMembership.objects.get(tenant_id=tenant_id, user=user)
+# mastiin user adalah member aktif dari tenant
+def get_current_active_membership(*, user: User, tenant_id: int) -> TenantMembership:
+
+    try:
+        return TenantMembership.objects.get(
+            tenant_id=tenant_id,
+            user=user,
+            left_at__isnull=True,
+        )
+    except TenantMembership.DoesNotExist:
+        raise PermissionDenied("You are not member of this tenant")
