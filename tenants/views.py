@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
-from orders.permissions import IsTenantManagerOrOwner
 from tenants.models import TenantMembership
+from tenants.permissions import IsTenantManagerOrOwner
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
 from tenants.services import (
     get_current_active_membership,

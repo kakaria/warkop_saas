@@ -27,10 +27,25 @@ class IsAuthenticatedAndHasTenant(permissions.IsAuthenticated):
         return True
 
 
-"""
+class IsTenantManagerOrOwner(BasePermission):
+    """
+    buat mastiini user adalah manager or owner sesuai tenant_id
 
-        INI SEBENERNYA GAK PERLU DIPAKE WKWK
-"""
+    """
+
+    def has_permission(self, request, view):
+
+        # ambil requestnya cek apakah udah login
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # cek ke database
+        is_owner_or_manager = TenantMembership.objects.filter(
+            user=request.user,
+            role__in=[TenantMembership.Role.OWNER, TenantMembership.Role.MANAGER],
+        ).exists()
+
+        return is_owner_or_manager
 
 
 class IsTenantManager(BasePermission):

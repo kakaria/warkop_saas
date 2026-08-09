@@ -1,15 +1,19 @@
 from django.core.exceptions import ValidationError
 from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.thread_local import get_current_tenant
 from products.models import Product
-from products.serializers import ProductCreateSerializer, ProductDetailSerializer
+from products.serializers import (
+    ProductBasicPatchSerializer,
+    ProductCreateSerializer,
+    ProductDetailSerializer,
+)
 from products.services import create_product_service
-from tenants.permissions import IsAuthenticatedAndHasTenant
+from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.services import get_current_active_membership
 
 
@@ -76,3 +80,20 @@ class ProductRetrieveAPIView(RetrieveAPIView):
     def get_queryset(self):
 
         return Product.objects.all()
+
+
+# view untuk patch (data mutation) gak ada efek domino ke sistem lain
+class ProductBasicPatchView(UpdateAPIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    serializer_class = ProductBasicPatchSerializer
+
+    http_method_names = ["patch"]
+
+    def get_queryset(self):
+        tenant_id = get_current_tenant()
+
+        if tenant_id is None:
+            return Product.objects.none()
+
+        return Product.objects.filter(tenant_id=tenant_id, is_archived=False)

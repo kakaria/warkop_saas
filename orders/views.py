@@ -9,7 +9,6 @@ from core.thread_local import get_current_tenant
 from orders.services import create_order_service
 
 from .models import Order
-from .permissions import IsTenantCashier, IsTenantManagerOrOwner
 from .serializers import OrderCreateSerializer, OrderDetailSerializer
 
 # class OrderViewSet(
