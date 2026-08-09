@@ -42,3 +42,13 @@ class Product(models.Model):
                 name="unique_tenant_name_product",
             ),
         ]
+
+
+class StockMovement(models.Model):
+
+    class Action(models.TextChoices):
+        ADD = "ADD", "Add"
+        DEDUCT = "DEDUCT", "Deduct"
+
+    # bikin fieldnya
+    product = models.ForeignKey(Product, on_delete=models.PROTECT.,)

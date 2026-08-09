@@ -31,3 +31,25 @@ class ProductBasicPatchSerializer(serializers.ModelSerializer):
             "name",
             "price",
         ]
+
+    def validate_name(self, value):
+        # ambil object product
+        product = self.instance
+
+        # cek apakah product ini ada, belom di arsip, namanya sama (case-insensitive), dan bukan product dirinya sendiri (product ini)
+        duplicate_exists = (
+            Product.objects.filter(
+                tenant_id=product.tenant_id,
+                name=value,  # biar "Kopi" = "kopi"
+                is_archived=False,
+            )
+            .exclude(  # kecuali product ini (yang lagi mau di patch)
+                id=product.id,
+            )
+            .exists()
+        )
+
+        if duplicate_exists:
+            raise serializers.ValidationError("Product has been stored in this tenant!")
+
+        return value

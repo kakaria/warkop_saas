@@ -88,7 +88,7 @@ class ProductBasicPatchView(UpdateAPIView):
 
     serializer_class = ProductBasicPatchSerializer
 
-    http_method_names = ["patch"]
+    http_method_names = ["patch"]   
 
     def get_queryset(self):
         tenant_id = get_current_tenant()
