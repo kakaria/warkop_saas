@@ -1,5 +1,6 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, constraints
+from django.db.models.constraints import CheckConstraint
 
 from core.managers import ProductTenantManager
 
@@ -44,6 +45,16 @@ class Product(models.Model):
         ]
 
 
+class ReasonChoices(models.TextChoices):
+    RESTOCK = "RESTOCK", "Restock"
+    DAMAGED = "DAMAGED", "Damaged"
+    EXPIRED = "EXPIRED", "Expired"
+    SALE = "SALE", "Sale"
+    LOST = "LOST", "Lost"
+    ADJUSTMENT = "ADJUSTMENT", "Adjustment"
+    OTHER = "OTHER", "Other"
+
+
 class StockMovement(models.Model):
 
     class Action(models.TextChoices):
@@ -51,4 +62,38 @@ class StockMovement(models.Model):
         DEDUCT = "DEDUCT", "Deduct"
 
     # bikin fieldnya
-    product = models.ForeignKey(Product, on_delete=models.PROTECT.,)
+    product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="stock_movement"
+    )
+    action = models.CharField(
+        max_length=10,
+        choices=Action.choices,
+    )
+
+    quantity = (
+        models.PositiveIntegerField()
+    )  # biar gak perlu nulis - (karena udah ada action)
+
+    reason = models.CharField(max_length=10, choices=ReasonChoices.choices)
+
+    notes = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    created_by = models.ForeignKey(
+        "users.User", on_delete=models.PROTECT, related_name="stock_movements_created"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(quantity__gt=0), name="stock_movement_quantity_must_be_positive"
+            ),
+            models.CheckConstraint(
+                check=~Q(reason=ReasonChoices.OTHER) | ~Q(notes=""),
+                name="notes_required_if_reason_other",
+            ),
+        ]

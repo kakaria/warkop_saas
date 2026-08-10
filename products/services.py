@@ -1,7 +1,7 @@
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
-from products.models import Product
+from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
 
 # CONSTANT ROLES
@@ -39,3 +39,53 @@ def create_product_service(
         raise ValidationError("Product dengan nama tersebut sudah ada!")
 
     return product
+
+
+def adjust_stock_service(
+    *, actor_membership: TenantMembership, product_id: int, validated_data: dict
+) -> StockMovement:
+
+    # ambil reason dari payload yang udah divalidasi seralizer
+    reason = validated_data["reason"]
+    action = validated_data["action"]
+    quantity = validated_data["quantity"]
+    notes = validated_data.get("notes", "")
+
+    # validasi authorization
+    if (
+        actor_membership.role == TenantMembership.Role.CASHIER
+        and reason != ReasonChoices.SALE
+    ):
+        raise PermissionDenied(
+            "Cashier hanya bisa melakukan stock movement untuk SALE!"
+        )
+
+    with transaction.atomic():
+        product = Product.objects.select_for_update().get(
+            id=product_id, tenant_id=actor_membership.tenant_id, is_archived=False
+        )
+
+        # cek action jika ADD
+        if action == StockMovement.Action.ADD:
+            product.stock += quantity
+        elif action == StockMovement.Action.DEDUCT:
+            # cek dulu jumlah stock yang ada
+            if product.stock < quantity:
+                raise ValidationError("Jumlah stock tidak mencukupi")
+
+            product.stock -= quantity
+
+        # save perubahan stock terbaru
+        product.save(update_fields=["stock"])
+
+        # bikin stockmovement
+        new_stock_movement = StockMovement.objects.create(
+            product=product,
+            action=action,
+            quantity=quantity,
+            reason=reason,
+            notes=notes,
+            created_by=actor_membership.user,
+        )
+
+        return new_stock_movement

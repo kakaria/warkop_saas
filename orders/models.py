@@ -46,6 +46,6 @@ class OrderItem(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(quantity__gt=0), name="quantity_gte_0"
+                check=models.Q(quantity__gt=0), name="quantity_must_than_0"
             ),
         ]
