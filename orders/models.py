@@ -26,7 +26,7 @@ class Order(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(total_price__gte=0), name="total_price_gte_0"
+                condition=models.Q(total_price__gte=0), name="total_price_gte_0"
             )
         ]
 
@@ -46,6 +46,6 @@ class OrderItem(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(quantity__gt=0), name="quantity_must_than_0"
+                condition=models.Q(quantity__gt=0), name="quantity_must_than_0"
             ),
         ]

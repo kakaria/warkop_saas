@@ -1,6 +1,5 @@
 from django.db import models
-from django.db.models import Q, constraints
-from django.db.models.constraints import CheckConstraint
+from django.db.models import Q
 
 from core.managers import ProductTenantManager
 
@@ -31,10 +30,10 @@ class Product(models.Model):
         constraints = [
             # biar price > 0
             models.CheckConstraint(
-                check=models.Q(price__gte=0), name="product_price_gte_0"
+                condition=models.Q(price__gte=0), name="product_price_gte_0"
             ),
             models.CheckConstraint(
-                check=models.Q(stock__gte=0), name="product_stock_gte_0"
+                condition=models.Q(stock__gte=0), name="product_stock_gte_0"
             ),
             # unique tenant dan name product
             models.UniqueConstraint(
@@ -90,10 +89,11 @@ class StockMovement(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=Q(quantity__gt=0), name="stock_movement_quantity_must_be_positive"
+                condition=Q(quantity__gt=0),
+                name="stock_movement_quantity_must_be_positive",
             ),
             models.CheckConstraint(
-                check=~Q(reason=ReasonChoices.OTHER) | ~Q(notes=""),
+                condition=~Q(reason=ReasonChoices.OTHER) | ~Q(notes=""),
                 name="notes_required_if_reason_other",
             ),
         ]
