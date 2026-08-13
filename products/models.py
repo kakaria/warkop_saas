@@ -17,7 +17,6 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_archived = models.BooleanField(default=False)
 
-    # PANGGIL SI SATPAM (Default dengan logika OR)
     objects = ProductTenantManager()
 
     # PANGGIL MANAGER PINTU BELAKANG (Bypass)

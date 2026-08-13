@@ -5,14 +5,17 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.exceptions import ProductNotFoundError
 from core.thread_local import get_current_tenant
 from products.models import Product
 from products.serializers import (
     ProductBasicPatchSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
+    StockAdjustmentSerializer,
+    StockMovementDetailSerializer,
 )
-from products.services import create_product_service
+from products.services import adjust_stock_service, create_product_service
 from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.services import get_current_active_membership
 
@@ -88,7 +91,7 @@ class ProductBasicPatchView(UpdateAPIView):
 
     serializer_class = ProductBasicPatchSerializer
 
-    http_method_names = ["patch"]   
+    http_method_names = ["patch"]
 
     def get_queryset(self):
         tenant_id = get_current_tenant()
@@ -97,3 +100,46 @@ class ProductBasicPatchView(UpdateAPIView):
             return Product.objects.none()
 
         return Product.objects.filter(tenant_id=tenant_id, is_archived=False)
+
+
+class StockAdjustmentAPIView(APIView):
+
+    # permission
+    permission_classes = [IsAuthenticatedAndHasTenant]
+
+    def post(self, request, product_id):
+
+        # pasang input serializer
+        input_serializer = StockAdjustmentSerializer(data=request.data)
+        # validasi input serializer
+        input_serializer.is_valid(raise_exception=True)
+
+        tenant_id = get_current_tenant()
+
+        if tenant_id is None:
+            raise ValidationError("Tenant contex is required!")
+
+        # ambil tenant_membership dari request.user
+        actor_membership = get_current_active_membership(
+            user=request.user,
+            tenant_id=tenant_id,
+        )
+
+        try:
+
+            # panggil service
+            stock_movement = adjust_stock_service(
+                actor_membership=actor_membership,
+                product_id=product_id,
+                validated_data=input_serializer.validated_data,
+            )
+        except ProductNotFoundError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # panggil ouput serializer
+        output_serializer = StockMovementDetailSerializer(stock_movement)
+
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)

@@ -1,5 +1,3 @@
-from random import choice
-
 from rest_framework import serializers
 
 from products.models import Product, ReasonChoices, StockMovement
@@ -59,20 +57,57 @@ class ProductBasicPatchSerializer(serializers.ModelSerializer):
 
 class StockAdjustmentSerializer(serializers.Serializer):
 
-    action = serializers.ChoiceField(choices=StockMovement.Action.choices)
-    quantity = serializers.IntegerField(min_value=1)
+    action = serializers.ChoiceField(
+        choices=StockMovement.Action.choices, required=False
+    )
+    quantity = serializers.IntegerField(min_value=1, required=False)
     reason = serializers.ChoiceField(choices=ReasonChoices.choices)
     notes = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    target_stock = serializers.IntegerField(min_value=0, required=False)
 
     def validate(self, attrs):
-        reason = attrs["reason"]
-        action = attrs["action"]
+
+        # field hasil validate
+        reason = attrs["reason"]  # wajib ada, kalo gak dikirim KeyError
+        action = attrs.get("action")
+        quantity = attrs.get("quantity")
         notes = attrs.get("notes", "").strip()
 
-        if reason == ReasonChoices.OTHER and not notes:
-            raise serializers.ValidationError(
-                "Notes wajib diisi jika reason adalah OTHER!"
-            )
+        # ambil target_stock jika reason == Adjustment
+        if reason == ReasonChoices.ADJUSTMENT:
+            target_stock = attrs.get("target_stock")
+
+            if target_stock is None:
+                raise serializers.ValidationError(
+                    {"target_stock": "Target Stock harus diisi untuk Adjustment!"}
+                )
+
+            # gak boleh ada action waktu pake Adjustment
+            if "action" in attrs:
+                raise serializers.ValidationError(
+                    {"action": "Action tidak boleh diisi untuk Adjustment!"}
+                )
+
+            # gak boleh ada quantity saat menggunakan Adjustment
+            if "quantity" in attrs:
+                raise serializers.ValidationError(
+                    {"quantity": "Quantity tidak boleh diisi untuk Adjustment!"}
+                )
+
+        # selain Adjustment, harus ada action dan quantity tapi gak boleh ada target_stock
+        else:
+            if action is None:
+                raise serializers.ValidationError({"action": "Action harus diisi!"})
+            if quantity is None:
+                raise serializers.ValidationError({"quantity": "Quantity harus diisi!"})
+            if "target_stock" in attrs:
+                raise serializers.ValidationError(
+                    {"target_stock": "Target stock dilarang!"}
+                )
+
+        # notes harus diisi ketika memilih OTHER atau Adjustment
+        if reason in [ReasonChoices.OTHER, ReasonChoices.ADJUSTMENT] and not notes:
+            raise serializers.ValidationError({"notes": "Notes wajib diisi!"})
 
         # mapping untuk reason -> action
         expected_actions = {
@@ -93,3 +128,18 @@ class StockAdjustmentSerializer(serializers.Serializer):
 
         attrs["notes"] = notes  # dimasukin lagi karena udah pake .strip()
         return attrs
+
+
+class StockMovementDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockMovement
+        fields = [
+            "product_id",
+            "action",
+            "quantity",
+            "reason",
+            "notes",
+            "created_by",
+            "created_at",
+        ]
+        read_only_fields = fields

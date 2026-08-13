@@ -1,6 +1,7 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
+from core.exceptions import ProductNotFoundError
 from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
 
@@ -47,8 +48,8 @@ def adjust_stock_service(
 
     # ambil reason dari payload yang udah divalidasi seralizer
     reason = validated_data["reason"]
-    action = validated_data["action"]
-    quantity = validated_data["quantity"]
+    action = validated_data.get("action")
+    quantity = validated_data.get("quantity")
     notes = validated_data.get("notes", "")
 
     # validasi authorization
@@ -61,19 +62,44 @@ def adjust_stock_service(
         )
 
     with transaction.atomic():
-        product = Product.objects.select_for_update().get(
-            id=product_id, tenant_id=actor_membership.tenant_id, is_archived=False
-        )
+        # tambahin service boundaries jika gak ketemu productnya
+        try:
 
-        # cek action jika ADD
-        if action == StockMovement.Action.ADD:
-            product.stock += quantity
-        elif action == StockMovement.Action.DEDUCT:
-            # cek dulu jumlah stock yang ada
-            if product.stock < quantity:
-                raise ValidationError("Jumlah stock tidak mencukupi")
+            product = Product.objects.select_for_update().get(
+                id=product_id, tenant_id=actor_membership.tenant_id, is_archived=False
+            )
+        except Product.DoesNotExist:
+            raise ProductNotFoundError("Product tersebut tidak ada.")
 
-            product.stock -= quantity
+        # cek jika reason Adjustment
+        if reason == ReasonChoices.ADJUSTMENT:
+            target_stock = validated_data["target_stock"]
+            # hitung perubahan stock
+            difference = target_stock - product.stock
+            # cek difference
+            if difference == 0:
+                raise ValidationError("Target stock sama dengan jumlah stock saat ini!")
+
+            action = (
+                StockMovement.Action.DEDUCT
+                if difference < 0
+                else StockMovement.Action.ADD
+            )
+            quantity = abs(difference)
+
+            product.stock = target_stock
+
+        # kalo reason bukan Adjustment
+        else:
+            # kalo reason selain Adjustment
+            if action == StockMovement.Action.ADD:
+                product.stock += quantity
+            elif action == StockMovement.Action.DEDUCT:
+                # cek dulu jumlah stock yang ada
+                if product.stock < quantity:
+                    raise ValidationError("Jumlah stock tidak mencukupi")
+
+                product.stock -= quantity
 
         # save perubahan stock terbaru
         product.save(update_fields=["stock"])

@@ -5,6 +5,7 @@ from products.views import (
     ProductCreateAPIView,
     ProductListAPIView,
     ProductRetrieveAPIView,
+    StockAdjustmentAPIView,
 )
 
 urlpatterns = [
@@ -12,4 +13,9 @@ urlpatterns = [
     path("list/", ProductListAPIView.as_view(), name="products-list"),
     path("<int:pk>/", ProductRetrieveAPIView.as_view(), name="product-detail"),
     path("patch/<int:pk>/", ProductBasicPatchView.as_view(), name="product-patch"),
+    path(
+        "<int:product_id>/stock-adjustment/",
+        StockAdjustmentAPIView.as_view(),
+        name="stock_adjustment",
+    ),
 ]

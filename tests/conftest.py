@@ -1,6 +1,7 @@
 import pytest
 
 from core.thread_local import clear_thread_local, set_current_tenant
+from products.models import Product
 from tenants.models import Tenant, TenantMembership
 from users.models import User
 
@@ -123,3 +124,23 @@ def staff_payload(owner_membership_a):
         "role": TenantMembership.Role.MANAGER,
         "current_tenant_id": owner_membership_a.tenant_id,
     }
+
+
+@pytest.fixture
+def product(tenantA):
+    return Product.objects.create(
+        tenant=tenantA,
+        name="productA",
+        price=1000,
+        stock=10,
+    )
+
+
+@pytest.fixture
+def productB(tenantB):
+    return Product.objects.create(
+        tenant=tenantB,
+        name="ProductB",
+        price=15000,
+        stock=50,
+    )
