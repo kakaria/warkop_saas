@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from core.exceptions import BussinessRuleViolation
+from core.exceptions import BusinessRuleViolation, ResourceNotFound
 from tenants.models import Tenant, TenantMembership
 from users.models import User
 from users.services import create_user_account_service
@@ -232,7 +232,7 @@ def remove_member_from_tenant_service(
             ).get(id=actor_membership_id)
 
         except TenantMembership.DoesNotExist:
-            raise BussinessRuleViolation("Maaf member ini tidak ditemukan")
+            raise BusinessRuleViolation("Maaf member ini tidak ditemukan")
 
         # ambil target_membership
         try:
@@ -241,7 +241,7 @@ def remove_member_from_tenant_service(
             )
 
         except TenantMembership.DoesNotExist:
-            raise BussinessRuleViolation("Maaf member ini tidak ditemukan")
+            raise BusinessRuleViolation("Maaf member ini tidak ditemukan")
 
         # cek apakah dia selain owner dan manager
         if actor_membership.role not in [
@@ -315,4 +315,4 @@ def get_current_active_membership(*, user: User, tenant_id: int) -> TenantMember
             left_at__isnull=True,
         )
     except TenantMembership.DoesNotExist:
-        raise PermissionDenied("You are not member of this tenant")
+        raise ResourceNotFound("Tenant not Found!")

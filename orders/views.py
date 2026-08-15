@@ -6,7 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.thread_local import get_current_tenant
+from orders.dto import CreateOrderDTO, OrderItemDTO
 from orders.services import create_order_service
+from tenants.services import get_current_active_membership
 
 from .models import Order
 from .serializers import OrderCreateSerializer, OrderDetailSerializer
@@ -74,16 +76,29 @@ class OrderCreateAPIView(APIView):
         # validasi input
         input_serializer.is_valid(raise_exception=True)
 
+        validated_data = input_serializer.validated_data
+
+        items = [
+            OrderItemDTO(product_id=item["product_id"], quantity=item["quantity"])
+            for item in validated_data["items"]
+        ]
+
+        order_data = CreateOrderDTO(items=items)
+
         tenant_id = get_current_tenant()
 
         if tenant_id is None:
             raise ValidationError("Tenant Context is required.")
 
-        # panggil service
-        order = create_order_service(
+        # ambil tenant membership pake helper
+        actor_membership = get_current_active_membership(
             user=request.user,
             tenant_id=tenant_id,
-            items_data=input_serializer.validated_data["items"],
+        )
+        # panggil service
+        order = create_order_service(
+            actor_membership=actor_membership,
+            data=order_data,
         )
 
         # output serializer

@@ -12,14 +12,23 @@
 # 10. pastiin pake transaction.atomic biar make sifat all or nothing
 # """
 
+from dataclasses import dataclass
+from itertools import product
 from typing import List
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
-from products.models import Product
-from users.models import User
+from core.exceptions import (
+    BusinessRuleViolation,
+    InsufficientStockError,
+    ProductNotFoundError,
+)
+from products.models import Product, ReasonChoices, StockMovement
+from tenants.models import TenantMembership
 
+from .dto import CreateOrderDTO, OrderItemDTO
 from .models import Order, OrderItem
 
 # def process_checkout(tenant_id, user, items_data):
@@ -151,60 +160,88 @@ from .models import Order, OrderItem
 #         return order
 
 
-def create_order_service(user: User, tenant_id: int, items_data: List[dict]) -> Order:
+# CONSTANT ROLES
+ALLOWED_ORDER_CREATE_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+    TenantMembership.Role.CASHIER,
+]
+
+
+def create_order_service(
+    actor_membership: TenantMembership, data: CreateOrderDTO
+) -> Order:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_ORDER_CREATE_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki izin untuk membuat order!")
+
+    request_ids = [item.product_id for item in data.items]
+    unique_request_ids = set(request_ids)
+
+    # validasi duplicate id
+    if len(data.items) != len(unique_request_ids):
+        raise ValidationError(
+            "Product yang sama tidak boleh muncul lebih dari satu kali!"
+        )
+
+    # sorting id yang udah valid
+    sorted_ids = sorted(unique_request_ids)
 
     with transaction.atomic():
-
-        # ambil id product dari validated_data (pake Set {}, biar gak ada duplicate id)
-        request_ids = {item["product_id"] for item in items_data}
-
-        # validasi duplicate id
-        if len(items_data) != len(request_ids):
-            raise ValidationError("Terdapat duplikasi dalam pesanan!")
-
-        # sorting id yang udah valid
-        sorted_ids = sorted(request_ids)
 
         # ambil object product yang sesuai sama id sorted_ids (dan sorting sesuai id yang paling kecil) dan lock row id
         products = (
             Product.objects.select_for_update()
-            .filter(id__in=sorted_ids, tenant_id=tenant_id)
+            .filter(
+                id__in=sorted_ids,
+                tenant_id=actor_membership.tenant_id,
+                is_archived=False,
+            )
             .order_by("id")
         )
 
         # validasi product yang udah diambil
-        found_ids = {item.id for item in products}
-        missing_ids = request_ids - found_ids
+        found_ids = {product.id for product in products}
+        print(f"DEBUG: INI FOUND IDS: {found_ids}")
+        missing_ids = unique_request_ids - found_ids
         if missing_ids:
-            raise ValidationError(f"product dengan id: {missing_ids}, tidak ditemukan.")
+            raise ProductNotFoundError(
+                "Salah satu atau beberapa product tidak tersedia untuk order"
+            )
 
-        # looping untuk cek stok, hitung sub_total, bikin OrderItem
         product_by_id = {product.id: product for product in products}
         products_to_update = []
         pending_order_items = []
+        pending_stock_movements = []
         total_price = 0
 
-        for item in items_data:
-            product_obj = product_by_id[item["product_id"]]
-            quantity = item["quantity"]
+        # validasi semua stock
+        for item in data.items:
+            product_obj = product_by_id[item.product_id]
+            quantity = item.quantity
 
             # cek stock
             if quantity > product_obj.stock:
-                raise ValidationError(
-                    f"Insufficient stock for product '{product_obj.name}'. Available: {product_obj.stock}"
+                raise InsufficientStockError(
+                    f"Product {product_obj.id} has insufficient stock."
+                    f"Available= {product_obj.stock}, requested={quantity}"
                 )
-            product_obj.stock -= quantity
 
-            # masukin perubahan value stock dari si object tersebut
-            products_to_update.append(product_obj)
+        # kalo aman lanjut mutation data
+        for item in data.items:
+            product_obj = product_by_id[item.product_id]
+            quantity = item.quantity
 
-            # variable untuk nampung sub_total
             sub_total = quantity * product_obj.price
-
-            # variable untuk total_price
             total_price += sub_total
 
-            # simpen perubahan ke dalam pending_order_items
+            product_obj.stock -= quantity
+
+            # masukin perubahan si product
+            products_to_update.append(product_obj)
+
+            # simpen perubahan data buat nanti dibikin OrderItem
             pending_order_items.append(
                 {
                     "product": product_obj,
@@ -215,9 +252,22 @@ def create_order_service(user: User, tenant_id: int, items_data: List[dict]) -> 
                 }
             )
 
+            # simpen data untuk nanti dibikin StockMovement
+            pending_stock_movements.append(
+                StockMovement(
+                    product=product_obj,
+                    action=StockMovement.Action.DEDUCT,
+                    quantity=item.quantity,
+                    reason=ReasonChoices.SALE,
+                    created_by=actor_membership.user,
+                )
+            )
+
         # buat order (udah pasti jalanin .save())
         order = Order.objects.create(
-            tenant_id=tenant_id, created_by=user, total_price=total_price
+            tenant_id=actor_membership.tenant_id,
+            created_by=actor_membership.user,
+            total_price=total_price,
         )
 
         # nampung semua orderItem
@@ -241,4 +291,7 @@ def create_order_service(user: User, tenant_id: int, items_data: List[dict]) -> 
         # update bulk si product
         Product.objects.bulk_update(products_to_update, fields=["stock"])
 
-        return order
+        # update bulk si stockmovement
+        StockMovement.objects.bulk_create(pending_stock_movements)
+
+    return order

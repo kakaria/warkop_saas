@@ -421,7 +421,7 @@ def test_adjust_stock_adjustment_failed(manager_membership, product, tenant_cont
 
     # Act
     with pytest.raises(ValidationError):
-        movement = adjust_stock_service(
+        adjust_stock_service(
             actor_membership=manager_membership,
             product_id=product.id,
             validated_data=validated_data,

@@ -48,4 +48,12 @@ class OrderItem(models.Model):
             models.CheckConstraint(
                 condition=models.Q(quantity__gt=0), name="quantity_must_than_0"
             ),
+            models.CheckConstraint(
+                condition=models.Q(price_at_transaction__gte=0),
+                name="price_cannot_be_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(sub_total__gte=0),
+                name="sub_total_cannot_be_negative",
+            ),
         ]

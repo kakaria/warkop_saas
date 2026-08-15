@@ -5,7 +5,7 @@ from django.views import View
 from rest_framework import serializers
 
 from core.thread_local import get_current_tenant
-from orders.services import create_order_service
+# from orders.services import create_order_service
 
 from .models import Order, OrderItem
 
@@ -63,6 +63,18 @@ class OrderCreateSerializer(serializers.Serializer):
         allow_empty=False,  # biar kalo gak ada items, gak perlu masuk ke services.py
     )
 
+    def validate_items(self, value):
+
+        # cek duplicate product
+        product_ids = [item["product_id"] for item in value]
+        print(f"DEBUG: product_id: {product_ids}")
+
+        if len(product_ids) != len(set(product_ids)):
+            raise serializers.ValidationError(
+                "Terdapat produk yang sama lebih dari satu kali dalam pesanan."
+            )
+        return value
+
 
 # serializer untuk convert data menjadi JSON (output serializer)
 class OrderItemDetailSerializer(serializers.ModelSerializer):
@@ -87,5 +99,3 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         model = Order
         fields = ["id", "created_at", "total_price", "items"]
         read_only_fields = fields
-
-

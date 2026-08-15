@@ -1,7 +1,4 @@
-from django.db.models.functions import Exp
-
-
-class BussinessRuleViolation(Exception):
+class BusinessRuleViolation(Exception):
     pass
 
 
@@ -9,9 +6,9 @@ class ProductNotFoundError(Exception):
     pass
 
 
-class StockMovementCreationError(Exception):
+class InsufficientStockError(Exception):
     pass
 
 
-class InsufficientStockError(Exception):
+class ResourceNotFound(Exception):
     pass

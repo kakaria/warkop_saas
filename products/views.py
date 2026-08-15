@@ -60,18 +60,13 @@ class ProductCreateAPIView(APIView):
 class ProductListAPIView(ListAPIView):
 
     # permission_classes
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedAndHasTenant]
 
     # serializer
     serializer_class = ProductDetailSerializer
 
     # override
     def get_queryset(self):
-        tenant_id = get_current_tenant()
-
-        if tenant_id is None:
-            raise ValidationError("Tenant context is required!")
-
         return Product.objects.all()
 
 
@@ -143,3 +138,9 @@ class StockAdjustmentAPIView(APIView):
         output_serializer = StockMovementDetailSerializer(stock_movement)
 
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+
+# class StockMovementListView(ListAPIView):
+#     permission_classes = [IsAuthenticatedAndHasTenant]
+
+#     serializer_class =
