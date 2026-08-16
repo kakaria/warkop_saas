@@ -176,25 +176,16 @@ def create_order_service(
     if actor_membership.role not in ALLOWED_ORDER_CREATE_ROLES:
         raise BusinessRuleViolation("Anda tidak memiliki izin untuk membuat order!")
 
-    request_ids = [item.product_id for item in data.items]
-    unique_request_ids = set(request_ids)
+    # ambil product id dari dto (dan jadiin set)
+    requested_product_ids = {item.product_id for item in data.items}
 
-    # validasi duplicate id
-    if len(data.items) != len(unique_request_ids):
-        raise ValidationError(
-            "Product yang sama tidak boleh muncul lebih dari satu kali!"
-        )
-
-    # sorting id yang udah valid
-    sorted_ids = sorted(unique_request_ids)
+    sorted_product_ids = sorted(requested_product_ids)
 
     with transaction.atomic():
-
-        # ambil object product yang sesuai sama id sorted_ids (dan sorting sesuai id yang paling kecil) dan lock row id
         products = (
             Product.objects.select_for_update()
             .filter(
-                id__in=sorted_ids,
+                id__in=sorted_product_ids,
                 tenant_id=actor_membership.tenant_id,
                 is_archived=False,
             )
@@ -203,8 +194,7 @@ def create_order_service(
 
         # validasi product yang udah diambil
         found_ids = {product.id for product in products}
-        print(f"DEBUG: INI FOUND IDS: {found_ids}")
-        missing_ids = unique_request_ids - found_ids
+        missing_ids = requested_product_ids - found_ids
         if missing_ids:
             raise ProductNotFoundError(
                 "Salah satu atau beberapa product tidak tersedia untuk order"

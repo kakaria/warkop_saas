@@ -5,8 +5,8 @@ from django.views import View
 from rest_framework import serializers
 
 from core.thread_local import get_current_tenant
-# from orders.services import create_order_service
 
+# from orders.services import create_order_service
 from .models import Order, OrderItem
 
 # class OrderItemSerializer(serializers.ModelSerializer):
@@ -67,7 +67,6 @@ class OrderCreateSerializer(serializers.Serializer):
 
         # cek duplicate product
         product_ids = [item["product_id"] for item in value]
-        print(f"DEBUG: product_id: {product_ids}")
 
         if len(product_ids) != len(set(product_ids)):
             raise serializers.ValidationError(

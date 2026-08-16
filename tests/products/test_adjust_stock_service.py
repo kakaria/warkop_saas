@@ -7,7 +7,6 @@ from django.db import IntegrityError, close_old_connections
 from core.exceptions import (
     InsufficientStockError,
     ProductNotFoundError,
-    StockMovementCreationError,
 )
 from products.models import Product, ReasonChoices, StockMovement
 from products.services import adjust_stock_service
@@ -117,7 +116,6 @@ def test_cashier_can_deduct_for_sale(cashier_membership, product, tenant_context
     # Arrange
     tenant_context(cashier_membership.tenant_id)
 
-    print(f"DEBUG: TENANT_ID CASHIER: {cashier_membership.tenant_id}")
     initial_stock = product.stock
     quantity = 3
 
@@ -152,7 +150,6 @@ def test_cashier_cannot_restock(cashier_membership, product, tenant_context):
     # Arrange
     tenant_context(cashier_membership.tenant_id)
 
-    print(f"DEBUG: TENANT_ID CASHIER: {cashier_membership.tenant_id}")
     initial_stock = product.stock
     quantity = 3
 
@@ -190,8 +187,6 @@ def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
     # Arrange
     tenant_context(owner_membership_a.tenant_id)
 
-    print(f"DEBUG: tenant_id dari tenant_a: {owner_membership_a.tenant_id}")
-    print(f"DEBUG: tenant_id dari product_b: {productB.tenant_id}")
     initial_stock = productB.stock
     quantity = 10
 
@@ -210,10 +205,7 @@ def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
             validated_data=validated_data,
         )
 
-    print(f"DEBUG: stock awal: {productB.stock}")
     productB.refresh_from_db()
-
-    print(f"DEBUG: stock akhir: {productB.stock}")
 
     # Assert
     assert productB.stock == initial_stock

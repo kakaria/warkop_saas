@@ -137,10 +137,20 @@ def product(tenantA):
 
 
 @pytest.fixture
-def productB(tenantB):
+def productB(tenantA):
     return Product.objects.create(
-        tenant=tenantB,
+        tenant=tenantA,
         name="ProductB",
+        price=15000,
+        stock=50,
+    )
+
+
+@pytest.fixture
+def productC(tenantA):
+    return Product.objects.create(
+        tenant=tenantA,
+        name="ProductC",
         price=15000,
         stock=50,
     )

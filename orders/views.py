@@ -78,10 +78,10 @@ class OrderCreateAPIView(APIView):
 
         validated_data = input_serializer.validated_data
 
-        items = [
+        items = tuple(
             OrderItemDTO(product_id=item["product_id"], quantity=item["quantity"])
             for item in validated_data["items"]
-        ]
+        )
 
         order_data = CreateOrderDTO(items=items)
 
