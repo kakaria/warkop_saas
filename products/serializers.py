@@ -20,7 +20,15 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "stock",
             "is_archived",
             "created_at",
+            ""
         ]
+        read_only_fields = fields
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ["id", "name", "price"]
         read_only_fields = fields
 
 

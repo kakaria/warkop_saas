@@ -1,18 +1,13 @@
 from rest_framework import permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 
 from core.thread_local import get_current_tenant
-from django.core.exceptions import ValidationError
 
 from .models import TenantMembership
 
 
 class IsAuthenticatedAndHasTenant(permissions.IsAuthenticated):
-    """
-    1. PASTTIN USER UDAH LOGIN
-    2. PASTIIN TENANT_ID ADA DI CONTEXT
-    """
-
     def has_permission(self, request, view):
         # cek login pake logika bawaan DRF
         is_authenticated = super().has_permission(request, view)
@@ -22,7 +17,14 @@ class IsAuthenticatedAndHasTenant(permissions.IsAuthenticated):
         # cek tenant id
         tenant_id = get_current_tenant()
         if tenant_id is None:
-            raise ValidationError('Tenant context is required!')
+            raise PermissionDenied("Tenant context is required!")
+
+        has_membership = TenantMembership.objects_global.filter(
+            user=request.user, tenant_id=tenant_id, left_at=None
+        ).exists()
+
+        if not has_membership:
+            raise PermissionDenied("Anda tidak memiliki akses ke tenant ini")
 
         return True
 

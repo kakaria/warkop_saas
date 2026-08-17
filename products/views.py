@@ -12,6 +12,7 @@ from products.serializers import (
     ProductBasicPatchSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
+    ProductListSerializer,
     StockAdjustmentSerializer,
     StockMovementDetailSerializer,
 )
@@ -22,7 +23,7 @@ from tenants.services import get_current_active_membership
 
 class ProductCreateAPIView(APIView):
     # panggil permission
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedAndHasTenant]
 
     def post(self, request, *args, **kwargs) -> Response:
         # panggil input serializer
@@ -63,7 +64,7 @@ class ProductListAPIView(ListAPIView):
     permission_classes = [IsAuthenticatedAndHasTenant]
 
     # serializer
-    serializer_class = ProductDetailSerializer
+    serializer_class = ProductListSerializer
 
     # override
     def get_queryset(self):

@@ -1,4 +1,5 @@
 import pytest
+from rest_framework.test import APIClient
 
 from core.thread_local import clear_thread_local, set_current_tenant
 from products.models import Product
@@ -137,9 +138,9 @@ def product(tenantA):
 
 
 @pytest.fixture
-def productB(tenantA):
+def productB(tenantB):
     return Product.objects.create(
-        tenant=tenantA,
+        tenant=tenantB,
         name="ProductB",
         price=15000,
         stock=50,
@@ -154,3 +155,8 @@ def productC(tenantA):
         price=15000,
         stock=50,
     )
+
+
+@pytest.fixture
+def api_client():
+    return APIClient()

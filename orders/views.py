@@ -66,6 +66,7 @@ from .serializers import OrderCreateSerializer, OrderDetailSerializer
 #     #     return Response(data=response_serializer.data, status=status.HTTP_200_OK)
 
 
+# class Order
 class OrderCreateAPIView(APIView):
 
     permission_classes = [IsAuthenticated]

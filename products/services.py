@@ -13,7 +13,7 @@ ALLOWED_PRODUCT_CREATOR_ROLES = [
 
 
 def create_product_service(
-    actor_membership: TenantMembership, validated_data: dict
+    *, actor_membership: TenantMembership, validated_data: dict
 ) -> Product:
 
     # cek user (siapa yang buat product)
@@ -34,7 +34,7 @@ def create_product_service(
     try:
         # bikin productnya
         product = Product.objects.create(
-            tenant=actor_membership.tenant, **validated_data
+            tenant_id=actor_membership.tenant_id, **validated_data
         )
     except IntegrityError:
         raise ValidationError("Product dengan nama tersebut sudah ada!")
