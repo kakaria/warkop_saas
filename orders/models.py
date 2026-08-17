@@ -12,10 +12,21 @@ class Order(models.Model):
     )
     # 1 struk (order), 1 kasir
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="create_orders"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_orders",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.IntegerField()
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PAID = "PAID", "Paid"
+        VOID = "VOID", "Void"
+
+    status = models.CharField(
+        max_length=7, choices=Status.choices, default=Status.PENDING
+    )
 
     # MANAGER SATPAM (Default)
     objects = StrictTenantManager()
