@@ -20,7 +20,7 @@ class TenantMembership(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="tenant_membership",
+        related_name="tenant_memberships",
     )
 
     class Role(models.TextChoices):
