@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from core.exceptions import ProductNotFoundError
 from core.thread_local import get_current_tenant
+from products.dto import CreateProductDTO
 from products.models import Product
 from products.serializers import (
     ProductBasicPatchSerializer,
@@ -40,6 +41,13 @@ class ProductCreateAPIView(APIView):
         if tenant_id is None:
             raise ValidationError("Tenant context is required!")
 
+        # panggil CreateProductDTO
+        dto = CreateProductDTO(
+            name=validated_data["name"],
+            price=validated_data["price"],
+            stock=validated_data["stock"],
+        )
+
         # ambil si actor membership (yang lagi panggil endpoint ini)
         actor_membership = get_current_active_membership(
             user=request.user,
@@ -49,7 +57,7 @@ class ProductCreateAPIView(APIView):
         # panggil service
         product = create_product_service(
             actor_membership=actor_membership,
-            validated_data=validated_data,
+            data=dto,
         )
 
         # panggil output serializer

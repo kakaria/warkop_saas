@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -14,6 +15,13 @@ class Product(models.Model):
     price = models.IntegerField()
     stock = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_products",
+        null=True,
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
     is_archived = models.BooleanField(default=False)
 
@@ -27,7 +35,7 @@ class Product(models.Model):
             models.Index(fields=["tenant", "is_archived"]),
         ]
         constraints = [
-            # biar price > 0
+            # biar price >= 0
             models.CheckConstraint(
                 condition=models.Q(price__gte=0), name="product_price_gte_0"
             ),

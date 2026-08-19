@@ -6,6 +6,10 @@ class ProductNotFoundError(Exception):
     pass
 
 
+class ProductAlreadyExistsError(Exception):
+    pass
+
+
 class InsufficientStockError(Exception):
     pass
 

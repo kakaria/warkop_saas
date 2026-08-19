@@ -1,7 +1,9 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
-from core.exceptions import ProductNotFoundError
+from core.exceptions import ProductAlreadyExistsError, ProductNotFoundError
+from orders.dto import CreateOrderDTO
+from products.dto import CreateProductDTO
 from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
 
@@ -13,7 +15,7 @@ ALLOWED_PRODUCT_CREATOR_ROLES = [
 
 
 def create_product_service(
-    *, actor_membership: TenantMembership, validated_data: dict
+    *, actor_membership: TenantMembership, data: CreateProductDTO
 ) -> Product:
 
     # cek user (siapa yang buat product)
@@ -23,21 +25,25 @@ def create_product_service(
     # cek apakah ada product aktif (is_archived=False) yang namanya sama
     duplicate_product = Product.objects.filter(
         tenant_id=actor_membership.tenant_id,
-        name=validated_data["name"],
+        name=data.name,
         is_archived=False,
     ).exists()
 
     if duplicate_product:
-        raise ValidationError("Product dengan nama tersebut sudah ada!")
+        raise ProductAlreadyExistsError("Product dengan nama tersebut sudah ada!")
 
     # mencegah race condition
     try:
         # bikin productnya
         product = Product.objects.create(
-            tenant_id=actor_membership.tenant_id, **validated_data
+            tenant_id=actor_membership.tenant_id,
+            name=data.name,
+            price=data.price,
+            stock=data.stock,
+            created_by_id=actor_membership.user_id,
         )
     except IntegrityError:
-        raise ValidationError("Product dengan nama tersebut sudah ada!")
+        raise ProductAlreadyExistsError("Product dengan nama tersebut sudah ada!")
 
     return product
 

@@ -20,7 +20,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "stock",
             "is_archived",
             "created_at",
-            ""
+            "created_by",
         ]
         read_only_fields = fields
 
