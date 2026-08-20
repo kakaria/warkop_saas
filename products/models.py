@@ -57,6 +57,7 @@ class ReasonChoices(models.TextChoices):
     EXPIRED = "EXPIRED", "Expired"
     SALE = "SALE", "Sale"
     LOST = "LOST", "Lost"
+    ORDER_VOID = "VOID", "Void"
     ADJUSTMENT = "ADJUSTMENT", "Adjustment"
     OTHER = "OTHER", "Other"
 
