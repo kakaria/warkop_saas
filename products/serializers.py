@@ -77,6 +77,15 @@ class StockAdjustmentSerializer(serializers.Serializer):
 
         # field hasil validate
         reason = attrs["reason"]  # wajib ada, kalo gak dikirim KeyError
+
+        # cek kalo user ngirim ORDER_VOID, tolak
+        if reason == ReasonChoices.ORDER_VOID:
+            raise serializers.ValidationError(
+                {
+                    "reason": "ORDER_VOID hanya dapat dilakukan melalui proses Void Order!"
+                }
+            )
+
         action = attrs.get("action")
         quantity = attrs.get("quantity")
         notes = attrs.get("notes", "").strip()
