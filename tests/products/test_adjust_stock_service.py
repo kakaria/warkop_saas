@@ -9,6 +9,7 @@ from core.exceptions import (
     ProductNotFoundError,
 )
 from products.models import Product, ReasonChoices, StockMovement
+from products.serializers import StockAdjustmentSerializer
 from products.services import adjust_stock_service
 
 
@@ -391,10 +392,12 @@ def test_adjust_stock_adjustment_increase(manager_membership, product, tenant_co
     assert product.stock == 50
     assert movement.product_id == product.id
     assert movement.action == StockMovement.Action.ADD
-    assert StockMovement.objects.filter(
-        product_id=product.id,
-        reason=ReasonChoices.ADJUSTMENT
-    ).count() == 1
+    assert (
+        StockMovement.objects.filter(
+            product_id=product.id, reason=ReasonChoices.ADJUSTMENT
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db
@@ -428,3 +431,17 @@ def test_adjust_stock_adjustment_failed(manager_membership, product, tenant_cont
         ).count()
         == 1
     )
+
+
+@pytest.mark.django_db
+def test_order_void_is_rejected_by_stock_adjusment_serializer():
+    serializer = StockAdjustmentSerializer(
+        data={
+            "reason": ReasonChoices.ORDER_VOID,
+            "action": StockMovement.Action.ADD,
+            "quantity": 1,
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "reason" in serializer.errors
