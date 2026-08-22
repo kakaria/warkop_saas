@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
 
 from core.exceptions import (
     BusinessRuleViolation,
@@ -19,6 +20,11 @@ ALLOWED_PRODUCT_CREATOR_ROLES = [
 ]
 
 ALLOWED_PRODUCT_ARCHIVED_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+]
+
+ALLOWED_PRODUCT_STOCK_MOVEMENT_ROLES = [
     TenantMembership.Role.OWNER,
     TenantMembership.Role.MANAGER,
 ]
@@ -197,3 +203,32 @@ def unarchived_product_service(
         product.is_archived = False
         product.save(update_fields=["is_archived", "updated_at"])
         return product
+
+
+def list_stock_movement(actor_membership: TenantMembership) -> QuerySet[StockMovement]:
+
+    # cek authorization
+    if actor_membership.role not in ALLOWED_PRODUCT_STOCK_MOVEMENT_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    stock_movement = StockMovement.objects.filter(
+        product_id__tenant_id=actor_membership.tenant_id
+    )
+
+    return stock_movement
+
+
+def fetch_stock_movement_product_service(
+    actor_membership: TenantMembership, product_id: int
+) -> QuerySet[StockMovement]:
+
+    # cek authorization
+    if actor_membership.role not in ALLOWED_PRODUCT_STOCK_MOVEMENT_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    # cek product
+    stock_movements = StockMovement.objects.filter(
+        product_id=product_id,
+    )
+
+    return stock_movements
