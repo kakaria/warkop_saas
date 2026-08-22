@@ -8,7 +8,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
 from tenants.models import TenantMembership
-from tenants.permissions import IsTenantManagerOrOwner
+from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
 from tenants.services import (
     get_current_active_membership,
@@ -215,7 +215,7 @@ class StaffViewSet(viewsets.ModelViewSet):
 
 
 class RemoveMemberView(APIView):
-    permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
     # override
     def delete(self, request, pk, format=None):
@@ -226,7 +226,7 @@ class RemoveMemberView(APIView):
 
         # ambil object actor (pake service mini)
         try:
-            actor_membership = current_active_membership(
+            actor_membership = get_current_active_membership(
                 user=request.user,
                 tenant_id=get_current_tenant(),
             )

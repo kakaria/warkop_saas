@@ -41,10 +41,14 @@ class IsTenantManagerOrOwner(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
+        tenant_id = get_current_tenant()
+
         # cek ke database
         is_owner_or_manager = TenantMembership.objects.filter(
             user=request.user,
+            tenant_id=tenant_id,
             role__in=[TenantMembership.Role.OWNER, TenantMembership.Role.MANAGER],
+            left_at__isnull=True,
         ).exists()
 
         return is_owner_or_manager
@@ -60,6 +64,7 @@ class IsTenantManager(BasePermission):
         if not request.user.is_authenticated:
             return False
 
+        tene
         # cek ke database
         is_manager = TenantMembership.objects.filter(
             user=request.user, role=TenantMembership.Role.MANAGER

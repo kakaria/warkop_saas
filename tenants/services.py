@@ -293,7 +293,7 @@ def remove_member_from_tenant_service(
                 )
             # kalo mau apus sesama manager
             if target_membership.role == TenantMembership.Role.MANAGER:
-                raise PermissionDenied(
+                  raise PermissionDenied(
                     "Anda sebagai Manager, tidak bisa menghapus sesama Manager"
                 )
 
