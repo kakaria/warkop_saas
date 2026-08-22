@@ -2,6 +2,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from core.thread_local import clear_thread_local, set_current_tenant
+from orders.models import Order, OrderItem
 from products.models import Product
 from tenants.models import Tenant, TenantMembership
 from users.models import User
@@ -128,35 +129,59 @@ def staff_payload(owner_membership_a):
 
 
 @pytest.fixture
-def product(tenantA):
+def product(tenantA, owner_user):
     return Product.objects.create(
         tenant=tenantA,
         name="productA",
         price=1000,
         stock=10,
+        created_by=owner_user,
     )
 
 
 @pytest.fixture
-def productB(tenantB):
+def productB(tenantB, owner_user):
     return Product.objects.create(
-        tenant=tenantB,
-        name="ProductB",
-        price=15000,
-        stock=50,
+        tenant=tenantB, name="ProductB", price=15000, stock=50, created_by=owner_user
     )
 
 
 @pytest.fixture
-def productC(tenantA):
+def productC(tenantA, owner_user):
     return Product.objects.create(
         tenant=tenantA,
         name="ProductC",
         price=15000,
         stock=50,
+        created_by=owner_user,
+        is_archived=True,
     )
 
 
 @pytest.fixture
 def api_client():
     return APIClient()
+
+
+@pytest.fixture
+def order_pending_owner_a(tenantA, owner_user, product):
+
+    # buat order dulu
+    order = Order.objects.create(
+        tenant=tenantA,
+        created_by=owner_user,
+        total_price=5000,
+        status=Order.Status.PENDING,
+    )
+
+    # buat OrderItem
+    OrderItem.objects.create(
+        order=order,
+        product=product,
+        quantity=5,
+        price_at_transaction=1000,
+        product_name_at_transaction=product.name,
+        sub_total=(5 * 1000),
+    )
+
+    return order
