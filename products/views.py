@@ -5,7 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.exceptions import ProductNotFoundError
+from core.exceptions import (
+    BusinessRuleViolation,
+    ProductNotFoundError,
+    ResourceNotFound,
+)
 from core.thread_local import get_current_tenant
 from products.dto import CreateProductDTO
 from products.models import Product
@@ -17,7 +21,13 @@ from products.serializers import (
     StockAdjustmentSerializer,
     StockMovementDetailSerializer,
 )
-from products.services import adjust_stock_service, create_product_service
+from products.services import (
+    adjust_stock_service,
+    archive_product_service,
+    create_product_service,
+    unarchived_product_service,
+)
+from tenants.models import Tenant, TenantMembership
 from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.services import get_current_active_membership
 
@@ -89,6 +99,16 @@ class ProductRetrieveAPIView(RetrieveAPIView):
         return Product.objects.all()
 
 
+class AdminProductListAPIView(ListAPIView):
+
+    # serializer
+    serializer_class = ProductDetailSerializer
+
+    # override
+    def get_queryset(self):
+        return Product.global_objects.all().order_by("id")
+
+
 # view untuk patch (data mutation) gak ada efek domino ke sistem lain
 class ProductBasicPatchView(UpdateAPIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
@@ -149,7 +169,48 @@ class StockAdjustmentAPIView(APIView):
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
-# class StockMovementListView(ListAPIView):
-#     permission_classes = [IsAuthenticatedAndHasTenant]
+class ArchiveProductAPIView(APIView):
 
-#     serializer_class =
+    permission_classes = [IsAuthenticatedAndHasTenant]
+
+    http_method_names = ["delete"]
+
+    def delete(self, request, product_id, format=None):
+
+        try:
+            actor_membership = get_current_active_membership(
+                user=request.user, tenant_id=get_current_tenant()
+            )
+        except TenantMembership.DoesNotExist:
+            raise ResourceNotFound("Membership tidak ditemukan!")
+
+        # panggil service
+        archive_product_service(
+            actor_membership=actor_membership, product_id=product_id
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UnArchiveProductAPIView(APIView):
+
+    permission_classes = [IsAuthenticatedAndHasTenant]
+
+    def post(self, request, product_id):
+
+        # cek membership user
+        try:
+            actor_membership = get_current_active_membership(
+                user=request.user, tenant_id=get_current_tenant()
+            )
+        except TenantMembership.DoesNotExist:
+            raise ResourceNotFound("Membership tidak ditemukan!")
+
+        # panggil service
+        unarchived_product_service(
+            actor_membership=actor_membership, product_id=product_id
+        )
+
+        return Response(
+            {"detail": "Product telah dipulihkan"}, status=status.HTTP_200_OK
+        )

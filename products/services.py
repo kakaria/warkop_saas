@@ -1,14 +1,24 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
-from core.exceptions import ProductAlreadyExistsError, ProductNotFoundError
+from core.exceptions import (
+    BusinessRuleViolation,
+    ProductAlreadyExistsError,
+    ProductNotFoundError,
+)
 from orders.dto import CreateOrderDTO
+from orders.models import Order
 from products.dto import CreateProductDTO
 from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
 
 # CONSTANT ROLES
 ALLOWED_PRODUCT_CREATOR_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+]
+
+ALLOWED_PRODUCT_ARCHIVED_ROLES = [
     TenantMembership.Role.OWNER,
     TenantMembership.Role.MANAGER,
 ]
@@ -40,7 +50,7 @@ def create_product_service(
             name=data.name,
             price=data.price,
             stock=data.stock,
-            created_by_id=actor_membership.user_id,
+            created_by=actor_membership.user,
         )
     except IntegrityError:
         raise ProductAlreadyExistsError("Product dengan nama tersebut sudah ada!")
@@ -123,3 +133,67 @@ def adjust_stock_service(
         )
 
         return new_stock_movement
+
+
+# soft delete product
+def archive_product_service(
+    *, actor_membership: TenantMembership, product_id: int
+) -> Product:
+
+    # cek authorization
+    if actor_membership.role not in ALLOWED_PRODUCT_ARCHIVED_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    with transaction.atomic():
+        # ambil productnya
+        try:
+            product = Product.objects.select_for_update().get(
+                id=product_id,
+                tenant_id=actor_membership.tenant_id,
+            )
+        except Product.DoesNotExist:
+            raise ProductNotFoundError("Product tidak ditemukan!")
+
+        if product.is_archived:
+            raise BusinessRuleViolation("Product sudah diarchive")
+
+        # cek jika ada order yang lagi pending dengan product yang ada didalemnya
+        active_order_exists = Order.objects.filter(
+            items__product_id=product_id, status=Order.Status.PENDING
+        ).exists()
+
+        if active_order_exists:
+            raise BusinessRuleViolation(
+                "Tidak dapat mengarsipkan product. Masih ada proses transaksi aktif yang menggunakan product ini"
+            )
+
+        product.is_archived = True
+        product.save(update_fields=["is_archived", "updated_at"])
+        return product
+
+
+# restore product
+def unarchived_product_service(
+    *, actor_membership: TenantMembership, product_id: int
+) -> Product:
+
+    # cek authorization
+    if actor_membership.role not in ALLOWED_PRODUCT_ARCHIVED_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    with transaction.atomic():
+        # ambil productnya
+        try:
+            product = Product.global_objects.select_for_update().get(
+                id=product_id,
+                tenant_id=actor_membership.tenant_id,
+            )
+        except Product.DoesNotExist:
+            raise ProductNotFoundError("Product tidak ditemukan!")
+
+        if not product.is_archived:
+            raise BusinessRuleViolation("Product dalam kondisi tidak diarchive")
+
+        product.is_archived = False
+        product.save(update_fields=["is_archived", "updated_at"])
+        return product
