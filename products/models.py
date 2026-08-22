@@ -19,7 +19,6 @@ class Product(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_products",
-        null=True,
     )
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -31,6 +30,8 @@ class Product(models.Model):
     global_objects = models.Manager()
 
     class Meta:
+        ordering = ["id"]
+
         indexes = [
             models.Index(fields=["tenant", "is_archived"]),
         ]
