@@ -106,3 +106,38 @@ class OrderCreateAPIView(APIView):
         output_serializer = OrderDetailSerializer(order)
 
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+class OrderVoidAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def post(self, request, order_id):
+        input_serializer = OrderVoidSerializer(data=request.data)
+
+        # validasi
+        input_serializer.is_valid(raise_exception=True)
+        validated_data = input_serializer.validated_data
+
+        tenant_id = get_current_tenant()
+
+        # ambil membership
+        actor_membership = get_current_active_membership(
+            user=request.user,
+            tenant_id=tenant_id
+        )
+
+        data = VoidOrderDTO(
+            reason=validated_data["reason"],
+            notes=validated_data["notes"],
+        )
+
+        # panggil service
+        void_order = order_void_service(
+            actor_membership=actor_membership,
+            data=data,
+            order_id=order_id
+        )
+
+        # output
+        output_serializer = OrderDetailSerializer(void_order)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+

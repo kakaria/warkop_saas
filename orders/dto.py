@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from products.models import ReasonChoices
+
 
 @dataclass(frozen=True)
 class OrderItemDTO:
@@ -28,3 +30,15 @@ class CreateOrderDTO:
             raise ValueError(
                 "Product yang sama tidak boleh muncul lebih dari satu kali."
             )
+
+
+@dataclass(frozen=True)
+class VoidOrderDTO:
+    reason: str
+    notes: str
+
+    def __post_init__(self):
+        if self.reason != ReasonChoices.ORDER_VOID:
+            raise ValueError("Reason untuk void order harus ORDER_VOID")
+        if not self.notes.strip():
+            raise ValueError("Notes harus diisi")
