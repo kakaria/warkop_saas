@@ -6,12 +6,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.thread_local import get_current_tenant
-from orders.dto import CreateOrderDTO, OrderItemDTO
-from orders.services import create_order_service
+from orders.dto import CreateOrderDTO, OrderItemDTO, VoidOrderDTO
+from orders.services import (
+    create_order_service,
+    fetch_order_service,
+    list_order_service,
+    order_void_service,
+)
+from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.services import get_current_active_membership
 
 from .models import Order
-from .serializers import OrderCreateSerializer, OrderDetailSerializer
+from .serializers import (
+    OrderCreateSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+    OrderVoidSerializer,
+)
 
 # class OrderViewSet(
 #     # mixins.CreateModelMixin,
@@ -106,6 +117,50 @@ class OrderCreateAPIView(APIView):
         output_serializer = OrderDetailSerializer(order)
 
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class OrderListAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def get(self, request, format=None):
+        actor_membership = get_current_active_membership(
+            user=request.user, tenant_id=get_current_tenant()
+        )
+
+        # panggil service
+        orders = list_order_service(
+            actor_membership=actor_membership,
+        )
+
+        # output serializer
+        output_serializer = OrderListSerializer(orders, many=True)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+
+class OrderDetailAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def get(
+        self,
+        request,
+        order_id,
+    ):
+        actor_membership = get_current_active_membership(
+            user=request.user, tenant_id=get_current_tenant()
+        )
+
+        # panggil service
+        order = fetch_order_service(
+            actor_membership=actor_membership, order_id=order_id
+        )
+
+        # output serializer
+        output_serializer = OrderDetailSerializer(order)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+
 class OrderVoidAPIView(APIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
@@ -120,8 +175,7 @@ class OrderVoidAPIView(APIView):
 
         # ambil membership
         actor_membership = get_current_active_membership(
-            user=request.user,
-            tenant_id=tenant_id
+            user=request.user, tenant_id=tenant_id
         )
 
         data = VoidOrderDTO(
@@ -131,13 +185,10 @@ class OrderVoidAPIView(APIView):
 
         # panggil service
         void_order = order_void_service(
-            actor_membership=actor_membership,
-            data=data,
-            order_id=order_id
+            actor_membership=actor_membership, data=data, order_id=order_id
         )
 
         # output
         output_serializer = OrderDetailSerializer(void_order)
 
         return Response(output_serializer.data, status=status.HTTP_200_OK)
-

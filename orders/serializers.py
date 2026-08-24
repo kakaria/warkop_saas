@@ -98,8 +98,15 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id", "created_at", "created_by", "total_price", "items"]
+        fields = ["id", "status", "created_at", "created_by", "total_price", "items"]
         read_only_fields = fields
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ["id", "status", "created_at"]
+        read_only_fiels = fields
 
 
 # serializer input void order

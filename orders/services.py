@@ -387,3 +387,27 @@ def order_void_service(
         return order
 
 
+def fetch_order_service(actor_membership: TenantMembership, order_id: int) -> Order:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_FETCH_ORDER_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    try:
+        order = Order.objects.get(
+            id=order_id,
+            tenant_id=actor_membership.tenant_id,
+        )
+    except Order.DoesNotExist:
+        raise BusinessRuleViolation("Order tidak ditemukan")
+
+    return order
+
+
+def list_order_service(actor_membership: TenantMembership) -> QuerySet[Order]:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_FETCH_ORDER_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    return Order.objects.filter(tenant_id=actor_membership.tenant_id)

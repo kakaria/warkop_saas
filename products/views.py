@@ -255,3 +255,5 @@ class UnarchiveProductAPIView(APIView):
         return Response(
             {"detail": "Product telah dipulihkan"}, status=status.HTTP_200_OK
         )
+
+

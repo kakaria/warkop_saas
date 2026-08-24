@@ -172,3 +172,4 @@ class StockMovementListSerializer(serializers.ModelSerializer):
             "notes",
         ]
         read_only_fields = fields
+
