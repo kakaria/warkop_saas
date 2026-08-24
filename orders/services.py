@@ -18,6 +18,8 @@ from typing import List
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import QuerySet
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from core.exceptions import (
@@ -27,8 +29,9 @@ from core.exceptions import (
 )
 from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
+from tenants.services import get_current_active_membership
 
-from .dto import CreateOrderDTO, OrderItemDTO
+from .dto import CreateOrderDTO, OrderItemDTO, VoidOrderDTO
 from .models import Order, OrderItem
 
 # def process_checkout(tenant_id, user, items_data):
@@ -167,6 +170,16 @@ ALLOWED_ORDER_CREATE_ROLES = [
     TenantMembership.Role.CASHIER,
 ]
 
+ALLOWED_ORDER_VOID_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+]
+
+ALLOWED_FETCH_ORDER_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+]
+
 
 def create_order_service(
     actor_membership: TenantMembership, data: CreateOrderDTO
@@ -285,3 +298,116 @@ def create_order_service(
         StockMovement.objects.bulk_create(pending_stock_movements)
 
     return order
+
+
+def order_void_service(
+    *, actor_membership: TenantMembership, order_id: int, data: VoidOrderDTO
+) -> Order:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_ORDER_VOID_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak melakukan ini!")
+
+    with transaction.atomic():
+        try:
+            order = Order.objects.select_for_update().get(
+                id=order_id, tenant_id=actor_membership.tenant_id
+            )
+        except Order.DoesNotExist:
+            raise BusinessRuleViolation("Order tidak ditemukan!")
+
+        # cek status order
+        if order.status != Order.Status.PENDING:
+            raise BusinessRuleViolation(
+                "Hanya Order dengan status PENDING yang dapat di-void"
+            )
+
+        # ambil orderItem dari order
+        order_items = list(
+            order.items.all()
+        )  # items itu related_name dari fk order di table OrderItem
+
+        # kumpulin product id
+        product_ids = [item.product_id for item in order_items]
+
+        product_ids.sort()  # biar gak deadlock
+
+        # pake global_objects biar product (is_archived=True) tetep bisa di void,
+        products = list(
+            Product.global_objects.select_for_update()
+            .filter(
+                tenant_id=actor_membership.tenant_id,
+                id__in=product_ids,
+            )
+            .order_by("id")  # biar dapet sesuai urutan id (ascending)
+        )
+
+        found_product_ids = {product.id for product in products}
+        requested_product_ids = set(product_ids)
+
+        missing_product_ids = requested_product_ids - found_product_ids
+        if missing_product_ids:
+            raise BusinessRuleViolation(
+                "Terdapat product pada order yang tidak dapat ditemukan."
+            )
+
+        # bikin mapping buat ambil product sesuai product_id
+        products_by_id = {product.id: product for product in products}
+
+        pending_stock_movement = []
+
+        # bikin loop untuk balikin stock berdasarkan orderItem (data yang udah ada di order)
+        for item in order_items:
+            product = products_by_id[item.product_id]
+
+            product.stock += (
+                item.quantity
+            )  # balikin stock dari jumlah quantity di orderItem
+            product.updated_at = timezone.now()
+
+            # buat StockMovementnya
+            pending_stock_movement.append(
+                StockMovement(
+                    product=product,
+                    action=StockMovement.Action.ADD,
+                    quantity=item.quantity,
+                    reason=data.reason,
+                    notes=data.notes,
+                    created_by=actor_membership.user,
+                )
+            )
+
+        # bulk_update si product
+        Product.global_objects.bulk_update(products, ["stock", "updated_at"])
+        # bulk_create si stockmovement
+        StockMovement.objects.bulk_create(pending_stock_movement)
+
+        order.status = Order.Status.VOID
+        order.save(update_fields=["status"])
+        return order
+
+
+def fetch_order_service(actor_membership: TenantMembership, order_id: int) -> Order:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_FETCH_ORDER_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    try:
+        order = Order.objects.get(
+            id=order_id,
+            tenant_id=actor_membership.tenant_id,
+        )
+    except Order.DoesNotExist:
+        raise BusinessRuleViolation("Order tidak ditemukan")
+
+    return order
+
+
+def list_order_service(actor_membership: TenantMembership) -> QuerySet[Order]:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_FETCH_ORDER_ROLES:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    return Order.objects.filter(tenant_id=actor_membership.tenant_id)

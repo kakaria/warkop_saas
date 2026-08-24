@@ -8,7 +8,9 @@ from products.views import (
     ProductListAPIView,
     ProductRetrieveAPIView,
     StockAdjustmentAPIView,
-    UnArchiveProductAPIView,
+    StockMovementDetailAPIView,
+    StockMovementListAPIView,
+    UnarchiveProductAPIView,
 )
 
 urlpatterns = [
@@ -24,8 +26,18 @@ urlpatterns = [
     ),
     path(
         "<int:product_id>/restore/",
-        UnArchiveProductAPIView.as_view(),
+        UnarchiveProductAPIView.as_view(),
         name="product-restore",
+    ),
+    path(
+        "stock-movement/",
+        StockMovementListAPIView.as_view(),
+        name="list-stock_movement",
+    ),
+    path(
+        "<int:product_id>/stock-movement/",
+        StockMovementDetailAPIView.as_view(),
+        name="list-stock_movement",
     ),
     path(
         "<int:product_id>/stock-adjustment/",

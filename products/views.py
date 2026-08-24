@@ -20,11 +20,14 @@ from products.serializers import (
     ProductListSerializer,
     StockAdjustmentSerializer,
     StockMovementDetailSerializer,
+    StockMovementListSerializer,
 )
 from products.services import (
     adjust_stock_service,
     archive_product_service,
     create_product_service,
+    fetch_stock_movement_product_service,
+    list_stock_movement,
     unarchived_product_service,
 )
 from tenants.models import Tenant, TenantMembership
@@ -169,6 +172,44 @@ class StockAdjustmentAPIView(APIView):
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
+class StockMovementDetailAPIView(APIView):
+
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def get(self, request, product_id):
+
+        actor_membership = get_current_active_membership(
+            user=request.user, tenant_id=get_current_tenant()
+        )
+
+        stock_movement = fetch_stock_movement_product_service(
+            actor_membership=actor_membership,
+            product_id=product_id,
+        )
+
+        output_serializer = StockMovementDetailSerializer(stock_movement, many=True)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+
+class StockMovementListAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def get(self, request):
+
+        actor_membership = get_current_active_membership(
+            user=request.user, tenant_id=get_current_tenant()
+        )
+
+        stock_movement = list_stock_movement(
+            actor_membership=actor_membership,
+        )
+
+        output_serializer = StockMovementListSerializer(stock_movement, many=True)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+
 class ArchiveProductAPIView(APIView):
 
     permission_classes = [IsAuthenticatedAndHasTenant]
@@ -192,7 +233,7 @@ class ArchiveProductAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class UnArchiveProductAPIView(APIView):
+class UnarchiveProductAPIView(APIView):
 
     permission_classes = [IsAuthenticatedAndHasTenant]
 
@@ -214,3 +255,5 @@ class UnArchiveProductAPIView(APIView):
         return Response(
             {"detail": "Product telah dipulihkan"}, status=status.HTTP_200_OK
         )
+
+

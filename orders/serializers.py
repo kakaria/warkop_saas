@@ -5,6 +5,8 @@ from django.views import View
 from rest_framework import serializers
 
 from core.thread_local import get_current_tenant
+from orders.dto import VoidOrderDTO
+from products.models import ReasonChoices
 
 # from orders.services import create_order_service
 from .models import Order, OrderItem
@@ -96,8 +98,29 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id", "created_at", "created_by", "total_price", "items"]
+        fields = ["id", "status", "created_at", "created_by", "total_price", "items"]
         read_only_fields = fields
 
 
+class OrderListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ["id", "status", "created_at"]
+        read_only_fiels = fields
+
+
 # serializer input void order
+class OrderVoidSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=[ReasonChoices.ORDER_VOID])
+
+    notes = serializers.CharField(
+        max_length=255,
+        required=True,
+        allow_blank=False,
+    )
+
+    def create_void(self) -> VoidOrderDTO:
+        return VoidOrderDTO(
+            reason=self.validated_data["reason"],
+            notes=self.validated_data["notes"],
+        )

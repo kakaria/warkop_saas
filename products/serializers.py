@@ -160,3 +160,16 @@ class StockMovementDetailSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+
+class StockMovementListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockMovement
+        fields = [
+            "product_id",
+            "action",
+            "reason",
+            "notes",
+        ]
+        read_only_fields = fields
+
