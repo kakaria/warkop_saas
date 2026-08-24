@@ -140,9 +140,9 @@ def product(tenantA, owner_user):
 
 
 @pytest.fixture
-def productB(tenantB, owner_user):
+def productB(tenantA, owner_user):
     return Product.objects.create(
-        tenant=tenantB, name="ProductB", price=15000, stock=50, created_by=owner_user
+        tenant=tenantA, name="ProductB", price=15000, stock=50, created_by=owner_user
     )
 
 
@@ -154,7 +154,6 @@ def productC(tenantA, owner_user):
         price=15000,
         stock=50,
         created_by=owner_user,
-        is_archived=True,
     )
 
 
@@ -172,6 +171,73 @@ def order_pending_owner_a(tenantA, owner_user, product):
         created_by=owner_user,
         total_price=5000,
         status=Order.Status.PENDING,
+    )
+
+    # buat OrderItem
+    OrderItem.objects.create(
+        order=order,
+        product=product,
+        quantity=7,
+        price_at_transaction=1000,
+        product_name_at_transaction=product.name,
+        sub_total=(5 * 1000),
+    )
+
+    return order
+
+
+@pytest.fixture
+def order_pending_owner_a_with_many_product(
+    tenantA, owner_user, product, productB, productC
+):
+
+    # buat order dulu
+    order = Order.objects.create(
+        tenant=tenantA,
+        created_by=owner_user,
+        total_price=5000,
+        status=Order.Status.PENDING,
+    )
+
+    # buat OrderItem
+    OrderItem.objects.create(
+        order=order,
+        product=product,
+        quantity=5,
+        price_at_transaction=1000,
+        product_name_at_transaction=product.name,
+        sub_total=(5 * 1000),
+    )
+
+    OrderItem.objects.create(
+        order=order,
+        product=productB,
+        quantity=5,
+        price_at_transaction=1000,
+        product_name_at_transaction=productB.name,
+        sub_total=(5 * 1000),
+    )
+    OrderItem.objects.create(
+        order=order,
+        product=productC,
+        quantity=5,
+        price_at_transaction=1000,
+        product_name_at_transaction=productC.name,
+        sub_total=(5 * 1000),
+    )
+
+    return order
+
+
+@pytest.fixture
+def order_not_pending_owner_a(tenantA, owner_user, product):
+
+    # buat order dulu
+    order = Order.objects.create(
+        tenant=tenantA,
+        created_by=owner_user,
+        total_price=5000,
+        status=Order.Status.PAID,
     )
 
     # buat OrderItem
