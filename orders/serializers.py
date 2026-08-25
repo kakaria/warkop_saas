@@ -124,3 +124,7 @@ class OrderVoidSerializer(serializers.Serializer):
             reason=self.validated_data["reason"],
             notes=self.validated_data["notes"],
         )
+
+
+class OrderPaidSerializer(serializers.Serializer):
+    pass

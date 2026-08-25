@@ -11,6 +11,7 @@ from orders.services import (
     create_order_service,
     fetch_order_service,
     list_order_service,
+    order_paid_service,
     order_void_service,
 )
 from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
@@ -21,6 +22,7 @@ from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderPaidSerializer,
     OrderVoidSerializer,
 )
 
@@ -190,5 +192,28 @@ class OrderVoidAPIView(APIView):
 
         # output
         output_serializer = OrderDetailSerializer(void_order)
+
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+
+class OrderPaidAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    def post(self, request, order_id):
+        input_serializer = OrderPaidSerializer(data=request.data)
+
+        input_serializer.is_valid(raise_exception=True)
+
+        actor_membership = get_current_active_membership(
+            user=request.user,
+            tenant_id=get_current_tenant()
+
+        )
+        order = order_paid_service(
+            actor_membership=actor_membership,
+            order_id=order_id
+        )
+
+        output_serializer = OrderDetailSerializer(order)
 
         return Response(output_serializer.data, status=status.HTTP_200_OK)
