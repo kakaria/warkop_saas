@@ -26,6 +26,7 @@ from core.exceptions import (
     BusinessRuleViolation,
     InsufficientStockError,
     ProductNotFoundError,
+    ResourceNotFound,
 )
 from products.models import Product, ReasonChoices, StockMovement
 from tenants.models import TenantMembership
@@ -176,6 +177,11 @@ ALLOWED_ORDER_VOID_ROLES = [
 ]
 
 ALLOWED_FETCH_ORDER_ROLES = [
+    TenantMembership.Role.OWNER,
+    TenantMembership.Role.MANAGER,
+]
+
+ALLOWED_ORDER_PAID_ROLES = [
     TenantMembership.Role.OWNER,
     TenantMembership.Role.MANAGER,
 ]
@@ -411,3 +417,29 @@ def list_order_service(actor_membership: TenantMembership) -> QuerySet[Order]:
         raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
     return Order.objects.filter(tenant_id=actor_membership.tenant_id)
+
+
+def order_paid_service(actor_membership: TenantMembership, order_id: int) -> Order:
+
+    # authorization
+    if actor_membership.role not in ALLOWED_ORDER_PAID_ROLES:
+        raise BusinessRuleViolation("Anda tidak memilik hak untuk melakukan ini!")
+
+    with transaction.atomic():
+        try:
+            order = Order.objects.select_for_update().get(
+                id=order_id,
+                tenant_id=actor_membership.tenant_id,
+            )
+        except Order.DoesNotExist:
+            raise ResourceNotFound("Order tidak ditemukan")
+
+        if order.status != Order.Status.PENDING:
+            raise BusinessRuleViolation(
+                "Hanya Order dengan status PENDING yang dapat dibayar!"
+            )
+
+        order.status = Order.Status.PAID
+        order.save(update_fields=["status"])
+
+        return order

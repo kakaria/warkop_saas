@@ -5,6 +5,7 @@ from .views import (
     OrderCreateAPIView,
     OrderDetailAPIView,
     OrderListAPIView,
+    OrderPaidAPIView,
     OrderVoidAPIView,
 )
 
@@ -13,4 +14,5 @@ urlpatterns = [
     path("", OrderListAPIView.as_view(), name="order-list"),
     path("<int:order_id>/", OrderDetailAPIView.as_view(), name="order-detail"),
     path("<int:order_id>/void-order/", OrderVoidAPIView.as_view(), name="order-void"),
+    path("<int:order_id>/paid-order/", OrderPaidAPIView.as_view(), name="order-paid"),
 ]
