@@ -8,8 +8,16 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
 from tenants.models import TenantMembership
-from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
-from tenants.serializers import StaffCreateSerializer, TenantRegisterSerializer
+from tenants.permissions import (
+    IsAuthenticatedAndHasTenant,
+    IsTenantManagerOrOwner,
+    IsTenantOwner,
+)
+from tenants.serializers import (
+    StaffCreateSerializer,
+    TenantRegisterSerializer,
+    TenantTimezonePatchSerializer,
+)
 from tenants.services import (
     get_current_active_membership,
     get_membership_service,
@@ -17,6 +25,7 @@ from tenants.services import (
     public_onboarding_orchestrator,
     remove_member_from_tenant_service,
     staff_provising_orchestrator,
+    update_tenant_timezone_service,
 )
 
 from .serializers import (
@@ -28,6 +37,7 @@ from .serializers import (
     StaffRoleSerializer,
     TenantMemberDetailSerializer,
     TenantMemberFilterSerializer,
+    TenantTimezonePatchSerializer,
 )
 
 
@@ -241,3 +251,25 @@ class RemoveMemberView(APIView):
         )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TenantPatchTimezoneAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantOwner]
+
+    def patch(self, request):
+        input_serializer = TenantTimezonePatchSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+
+        # ambil actor membership
+        actor_membership = get_current_active_membership(
+            user=request.user, tenant_id=get_current_tenant()
+        )
+
+        data = input_serializer.to_dto()
+
+        # panggil service
+        tenant = update_tenant_timezone_service(
+            actor_membership=actor_membership, data=data
+        )
+
+        return Response({"timezone": tenant.timezone}, status=status.HTTP_200_OK)

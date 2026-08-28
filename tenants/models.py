@@ -8,9 +8,7 @@ from core.managers import ActiveMembershipManager
 class Tenant(models.Model):
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
+    timezone = models.CharField(max_length=64, default="Asia/Jakarta")
 
 
 class TenantMembership(models.Model):
