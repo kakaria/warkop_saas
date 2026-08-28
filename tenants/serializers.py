@@ -6,7 +6,8 @@ from rest_framework_simplejwt.serializers import (
 )
 from rest_framework_simplejwt.tokens import AccessToken
 
-from tenants.models import TenantMembership
+from tenants.dto import UpdateTimezoneDTO
+from tenants.models import Tenant, TenantMembership
 from tenants.services import get_user_tenant_claim_service
 
 User = get_user_model()
@@ -193,3 +194,10 @@ class AdminTenantMemberDetailSerializer(serializers.ModelSerializer):
             "tenant_name",
             "role",
         ]
+
+
+class TenantTimezonePatchSerializer(serializers.Serializer):
+    timezone = serializers.CharField()
+
+    def to_dto(self) -> UpdateTimezoneDTO:
+        return UpdateTimezoneDTO(timezone=self.validated_data["timezone"])

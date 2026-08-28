@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -6,7 +8,10 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from core.exceptions import BusinessRuleViolation, ResourceNotFound
+from orders.models import Order
+from tenants.dto import UpdateTimezoneDTO
 from tenants.models import Tenant, TenantMembership
+from tenants.time import get_business_date, get_business_day_boundary
 from users.models import User
 from users.services import create_user_account_service
 
@@ -293,7 +298,7 @@ def remove_member_from_tenant_service(
                 )
             # kalo mau apus sesama manager
             if target_membership.role == TenantMembership.Role.MANAGER:
-                  raise PermissionDenied(
+                raise PermissionDenied(
                     "Anda sebagai Manager, tidak bisa menghapus sesama Manager"
                 )
 
@@ -316,3 +321,18 @@ def get_current_active_membership(*, user: User, tenant_id: int) -> TenantMember
         )
     except TenantMembership.DoesNotExist:
         raise ResourceNotFound("Tenant not Found!")
+
+
+def update_tenant_timezone_service(
+    *, actor_membership: TenantMembership, data: UpdateTimezoneDTO
+) -> Tenant:
+    # authorization
+    if actor_membership.role != TenantMembership.Role.OWNER:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
+
+    tenant = actor_membership.tenant
+    tenant.timezone = data.timezone
+
+    tenant.save(update_fields=["timezone"])
+
+    return tenant

@@ -54,6 +54,31 @@ class IsTenantManagerOrOwner(BasePermission):
         return is_owner_or_manager
 
 
+class IsTenantOwner(BasePermission):
+    """
+    buat mastiini user adalah manager or owner sesuai tenant_id
+
+    """
+
+    def has_permission(self, request, view):
+
+        # ambil requestnya cek apakah udah login
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        tenant_id = get_current_tenant()
+
+        # cek ke database
+        is_owner = TenantMembership.objects.filter(
+            user=request.user,
+            tenant_id=tenant_id,
+            role=TenantMembership.Role.OWNER,
+            left_at__isnull=True,
+        ).exists()
+
+        return is_owner
+
+
 class IsTenantManager(BasePermission):
     """
     BUAT MASTTIN ROLE USER YANG MASUK ADALAH MANAGER
