@@ -16,3 +16,7 @@ class InsufficientStockError(Exception):
 
 class ResourceNotFound(Exception):
     pass
+
+
+class StockMovementCreationError(Exception):
+    pass

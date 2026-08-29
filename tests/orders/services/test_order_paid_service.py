@@ -56,13 +56,13 @@ def test_order_paid_service_failed_when_order_status_is_paid(
 
 @pytest.mark.django_db
 def test_order_paid_service_failed_when_order_status_is_void(
-    owner_membership_a, tenant_context, order_paid_owner_a
+    owner_membership_a, tenant_context, order_void_owner_a
 ):
 
     # Arrange
     tenant_context(owner_membership_a.tenant_id)
 
-    order = order_paid_owner_a
+    order = order_void_owner_a
 
     with pytest.raises(BusinessRuleViolation) as exc:
         order_paid_service(
@@ -94,7 +94,7 @@ def test_order_paid_service_failed_when_order_was_in_other_tenant(
 
     order.refresh_from_db()
 
-    assert order.status == Order.Status.PAID
+    assert order.status == Order.Status.PENDING
     assert "order tidak ditemukan" in str(exc.value).lower()
 
 
@@ -116,7 +116,7 @@ def test_order_paid_service_failed_when_user_is_cashier(
 
     order.refresh_from_db()
 
-    assert order.status == Order.Status.PAID
+    assert order.status == Order.Status.PENDING
 
 
 @pytest.mark.django_db(transaction=True)

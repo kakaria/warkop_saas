@@ -7,6 +7,7 @@ from django.db import IntegrityError, close_old_connections
 from core.exceptions import (
     InsufficientStockError,
     ProductNotFoundError,
+    StockMovementCreationError,
 )
 from products.models import Product, ReasonChoices, StockMovement
 from products.serializers import StockAdjustmentSerializer
@@ -183,12 +184,12 @@ def test_cashier_cannot_restock(cashier_membership, product, tenant_context):
 
 @pytest.mark.django_db
 def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
-    owner_membership_a, productB, tenant_context
+    owner_membership_a, productD, tenant_context
 ):
     # Arrange
     tenant_context(owner_membership_a.tenant_id)
 
-    initial_stock = productB.stock
+    initial_stock = productD.stock
     quantity = 10
 
     # Act
@@ -199,19 +200,20 @@ def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
         "notes": "",
     }
 
+
     with pytest.raises(ProductNotFoundError):
         adjust_stock_service(
             actor_membership=owner_membership_a,
-            product_id=productB.id,
+            product_id=productD.id,
             validated_data=validated_data,
         )
 
-    productB.refresh_from_db()
+    productD.refresh_from_db()
 
     # Assert
-    assert productB.stock == initial_stock
+    assert productD.stock == initial_stock
     assert not StockMovement.objects.filter(
-        product_id=productB.id,
+        product_id=productD.id,
         reason=ReasonChoices.RESTOCK,
     ).exists()
 
@@ -237,7 +239,7 @@ def test_ajdust_stock_rolls_back_when_movement_creation_fails(
     }
 
     def failed_create(*args, **kwargs):
-        raise StockMovementCreationError("Gagal membuat StockMovement")
+        raise StockMovementCreationError("Gagal membuat StockMovement")  # noqa: F821
 
     monkeypatch.setattr(
         StockMovement.objects,

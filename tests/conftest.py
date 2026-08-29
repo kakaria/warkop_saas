@@ -158,6 +158,18 @@ def productC(tenantA, owner_user):
 
 
 @pytest.fixture
+def productArchivedC(tenantA, owner_user):
+    return Product.objects.create(
+        tenant=tenantA,
+        name="ProductC",
+        price=15000,
+        stock=50,
+        created_by=owner_user,
+        is_archived=True,
+    )
+
+
+@pytest.fixture
 def productD(tenantB, owner_user):
     return Product.objects.create(
         tenant=tenantB,
@@ -230,6 +242,30 @@ def order_paid_owner_a(tenantA, owner_user, product):
         created_by=owner_user,
         total_price=5000,
         status=Order.Status.PAID,
+    )
+
+    # buat OrderItem
+    OrderItem.objects.create(
+        order=order,
+        product=product,
+        quantity=7,
+        price_at_transaction=1000,
+        product_name_at_transaction=product.name,
+        sub_total=(5 * 1000),
+    )
+
+    return order
+
+
+@pytest.fixture
+def order_void_owner_a(tenantA, owner_user, product):
+
+    # buat order dulu
+    order = Order.objects.create(
+        tenant=tenantA,
+        created_by=owner_user,
+        total_price=5000,
+        status=Order.Status.VOID,
     )
 
     # buat OrderItem

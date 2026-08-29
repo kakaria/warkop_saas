@@ -1,6 +1,6 @@
 import pytest
 
-from core.exceptions import BusinessRuleViolation
+from core.exceptions import BusinessRuleViolation, ProductNotFoundError
 from products.services import archive_product_service
 
 
@@ -35,29 +35,29 @@ def test_archived_product_failed_when_actor_is_cashier(
 
 @pytest.mark.django_db
 def test_archived_product_failed_when_product_in_other_tenant(
-    owner_membership_a, tenant_context, productB
+    owner_membership_a, tenant_context, productD
 ):
     tenant_context(owner_membership_a.tenant_id)
 
-    with pytest.raises(BusinessRuleViolation):
+    with pytest.raises(ProductNotFoundError):
         archive_product_service(
-            actor_membership=owner_membership_a, product_id=productB.id
+            actor_membership=owner_membership_a, product_id=productD.id
         )
 
-    productB.refresh_from_db()
-    assert not productB.is_archived
+    productD.refresh_from_db()
+    assert not productD.is_archived
 
 
 @pytest.mark.django_db
 def test_archived_product_failed_when_product_is_already_archived(
-    cashier_membership, tenant_context, productC
+    cashier_membership, tenant_context, productArchivedC
 ):
     tenant_context(cashier_membership.tenant_id)
 
     with pytest.raises(BusinessRuleViolation):
         archive_product_service(
-            actor_membership=cashier_membership, product_id=productC.id
+            actor_membership=cashier_membership, product_id=productArchivedC.id
         )
-    productC.refresh_from_db()
+    productArchivedC.refresh_from_db()
 
-    assert productC.is_archived
+    assert productArchivedC.is_archived
