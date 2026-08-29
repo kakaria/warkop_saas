@@ -102,16 +102,6 @@ class ProductRetrieveAPIView(RetrieveAPIView):
         return Product.objects.all()
 
 
-class AdminProductListAPIView(ListAPIView):
-
-    # serializer
-    serializer_class = ProductDetailSerializer
-
-    # override
-    def get_queryset(self):
-        return Product.global_objects.all().order_by("id")
-
-
 # view untuk patch (data mutation) gak ada efek domino ke sistem lain
 class ProductBasicPatchView(UpdateAPIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
@@ -255,5 +245,3 @@ class UnarchiveProductAPIView(APIView):
         return Response(
             {"detail": "Product telah dipulihkan"}, status=status.HTTP_200_OK
         )
-
-
