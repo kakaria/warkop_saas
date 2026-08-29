@@ -32,6 +32,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+# REFACTOR INI SMELL CODE!!!!!!!!!!!!!
 class ProductBasicPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
@@ -172,4 +173,3 @@ class StockMovementListSerializer(serializers.ModelSerializer):
             "notes",
         ]
         read_only_fields = fields
-
