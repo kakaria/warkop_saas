@@ -1,21 +1,13 @@
-import logging
-from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
 from core.exceptions import BusinessRuleViolation, ResourceNotFound
-from orders.models import Order
 from tenants.dto import UpdateTimezoneDTO
 from tenants.models import Tenant, TenantMembership
-from tenants.time import get_business_date, get_business_day_boundary
 from users.models import User
 from users.services import create_user_account_service
-
-logger = logging.getLogger(__name__)
 
 
 def create_tenant_service(*, name: str, address: str) -> Tenant:
@@ -35,7 +27,6 @@ def assign_user_to_tenant_service(
     return TenantMembership.objects_global.create(user=user, tenant=tenant, role=role)
 
 
-@transaction.atomic
 def public_onboarding_orchestrator(
     email: str, password: str, full_name: str, tenant_name: str, tenant_address: str
 ) -> User:
@@ -43,56 +34,53 @@ def public_onboarding_orchestrator(
     create new Owner, Tenant, and connect them to TenantMembership
     """
 
-    # bikin users
-    new_user = create_user_account_service(
-        email=email,
-        password=password,
-        full_name=full_name,
-    )
+    with transaction.atomic():
 
-    # bikin tenant dari user diatas
-    new_tenant = create_tenant_service(name=tenant_name, address=tenant_address)
+        # bikin users
+        new_user = create_user_account_service(
+            email=email,
+            password=password,
+            full_name=full_name,
+        )
 
-    # sambungin new_user & new_tenant pake TenantMembership
-    assign_user_to_tenant_service(
-        user=new_user,
-        tenant=new_tenant,
-        role=TenantMembership.Role.OWNER,
-    )
+        # bikin tenant dari user diatas
+        new_tenant = create_tenant_service(name=tenant_name, address=tenant_address)
 
-    return new_user
+        # sambungin new_user & new_tenant pake TenantMembership
+        assign_user_to_tenant_service(
+            user=new_user,
+            tenant=new_tenant,
+            role=TenantMembership.Role.OWNER,
+        )
+
+        return new_user
 
 
-@transaction.atomic
 def staff_provising_orchestrator(
     actor_membership: TenantMembership,
     email: str,
     password: str,
     full_name: str,
     role: str,
-    current_tenant_id: int,
 ) -> User:
     """
     for assign new member to tenant
     """
 
-    if not current_tenant_id:
-        raise ValueError("Tenant tidak ditemukan di context!")
-
-    # selain owner & manager, tendang
+    # authorization
     if actor_membership.role not in [
         TenantMembership.Role.OWNER,
         TenantMembership.Role.MANAGER,
     ]:
-        raise PermissionDenied("Maaf, kamu tidak bisa membuat member baru")
+        raise BusinessRuleViolation("Maaf, kamu tidak bisa membuat member baru")
 
     # kalo actor_membership is Manager (cuma bisa bikin kasir)
     if actor_membership.role == TenantMembership.Role.MANAGER:
         if role != TenantMembership.Role.CASHIER:
-            raise PermissionDenied("Maaf, Manager hanya bisa membuat member Kasir")
+            raise BusinessRuleViolation("Maaf, Manager hanya bisa membuat member Kasir")
 
     # ambil object Tenant
-    tenant_obj = Tenant.objects.get(id=current_tenant_id)
+    tenant_obj = Tenant.objects.get(id=actor_membership.tenant_id)
 
     # bikin usernya dulu
     staff_user = create_user_account_service(
@@ -147,60 +135,46 @@ def get_membership_service(
     return queryset
 
 
-@transaction.atomic
 def patch_staff_service(
-    actor: User, target_membership: TenantMembership, validated_data: dict
+    actor_membership: TenantMembership,
+    target_membership: TenantMembership,
+    validated_data: dict,
 ) -> TenantMembership:
 
-    # ambil key dari dict validated_data
-    new_role = validated_data.get("role")
+    # authorization
+    if actor_membership.left_at is not None:
+        raise BusinessRuleViolation("Anda bukan member aktif")
 
-    # cek apakah apakah role yang dikirim or rolenya sama kayak target saat ini
-    if not new_role:
-        print("gak ada")
-        logger.info(
-            "Patch staff aborted: empty payload",
-            extra={
-                "event": "staff_patch_empty",
-                "actor_id": actor.id,
-                "target_id": target_membership.id,
-            },
-        )
-        return target_membership
-    if target_membership.role == new_role:
-        return target_membership
+    if actor_membership.tenant_id != target_membership.tenant_id:
+        raise BusinessRuleViolation("Anda tidak memiliki hak melakukan ini!")
 
-    # ambil membership dari si user filter dengan tenant_id yang sama kayak targetmembership
-    try:
-        actor_membership = TenantMembership.objects.get(
-            tenant=target_membership.tenant, user=actor
-        )
-    except TenantMembership.DoesNotExist:
-        raise PermissionDenied("Anda bukan member di tenant ini")
-
-    # bisnis rule
-    # CEK KASIR GAK BOLEH GANTI (HARUSNYA UDAH SI DI PERMISSIONS.PY)
     if actor_membership.role not in [
         TenantMembership.Role.OWNER,
         TenantMembership.Role.MANAGER,
     ]:
-        raise PermissionDenied(
-            f"Mohon maaf, {actor_membership.role} anda tidak memiliki hak untuk melakukan itu🙇"
-        )
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
-    # buat variable, biar gak ngetik
+    # ambil key dari dict validated_data
+    new_role = validated_data.get("role")
+
+    if not new_role or target_membership.role == new_role:
+        return target_membership
+
+    # variable kalo id actor dan target sama
     is_self_edit = actor_membership.id == target_membership.id
 
     # CEK untuk Manager
     if actor_membership.role == TenantMembership.Role.MANAGER:
         # inget! manager cuma bisa edit staff Kasir, jadi selain kasir tolak aja
         if not is_self_edit and target_membership.role != TenantMembership.Role.CASHIER:
-            raise PermissionDenied("Anda manager, hanya bisa edit staff kasir")
+            raise BusinessRuleViolation("Anda manager, hanya bisa edit staff kasir")
+
         # biar manager gak bisa edit dirinya sendiri (role)
         if is_self_edit and new_role != target_membership.role:
-            raise PermissionDenied("Anda gak bisa edit role anda")
+            raise BusinessRuleViolation("Anda gak bisa edit role anda")
+
         if not is_self_edit and new_role != TenantMembership.Role.CASHIER:
-            raise PermissionDenied("Anda cuma bisa angkat user jadi kasir")
+            raise BusinessRuleViolation("Anda cuma bisa angkat user jadi kasir")
 
     # CEK untuk OWNER
     if actor_membership.role == TenantMembership.Role.OWNER:
@@ -209,7 +183,9 @@ def patch_staff_service(
             TenantMembership.Role.MANAGER,
             TenantMembership.Role.CASHIER,
         ]:
-            raise PermissionDenied("Anda tidak boleh menurunkan jabatan anda sendiri")
+            raise BusinessRuleViolation(
+                "Anda tidak boleh menurunkan jabatan anda sendiri"
+            )
 
     # apply perubahan
     for key, value in validated_data.items():
@@ -320,7 +296,7 @@ def get_current_active_membership(*, user: User, tenant_id: int) -> TenantMember
             left_at__isnull=True,
         )
     except TenantMembership.DoesNotExist:
-        raise ResourceNotFound("Tenant not Found!")
+        raise ResourceNotFound("Membership not Found!")
 
 
 def update_tenant_timezone_service(

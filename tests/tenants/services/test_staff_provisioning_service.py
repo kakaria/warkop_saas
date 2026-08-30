@@ -1,6 +1,7 @@
 import pytest
 from django.core.exceptions import PermissionDenied
 
+from core.exceptions import BusinessRuleViolation
 from tenants.models import TenantMembership
 from tenants.services import (
     public_onboarding_orchestrator,
@@ -45,7 +46,6 @@ def test_provisioning_owner_can_create_manager(owner_membership_b, tenant_contex
         password="0987654321",
         full_name="my manager 01",
         role=TenantMembership.Role.MANAGER,
-        current_tenant_id=owner_membership_b.tenant_id,
     )
 
     # assert
@@ -69,7 +69,6 @@ def test_provisioning_owner_can_create_cashier(owner_membership_a, tenant_contex
         password="don'tknowthepass321",
         full_name="im the best",
         role=TenantMembership.Role.CASHIER,
-        current_tenant_id=owner_membership_a.tenant_id,
     )
 
     # assert
@@ -91,7 +90,6 @@ def test_provisioning_manager_can_create_cashier(manager_membership, tenant_cont
         password="don'tknowthepass321",
         full_name="im the best",
         role=TenantMembership.Role.CASHIER,
-        current_tenant_id=manager_membership.tenant_id,
     )
 
     # assert
@@ -105,14 +103,13 @@ def test_provisioning_manager_cannot_create_manager(manager_membership, tenant_c
 
     tenant_context(manager_membership.tenant_id)
 
-    with pytest.raises(PermissionDenied):
+    with pytest.raises(BusinessRuleViolation):
         staff_provising_orchestrator(
             actor_membership=manager_membership,
             email="manager02@me.me",
             password="123",
             full_name="this must no create",
             role=TenantMembership.Role.MANAGER,
-            current_tenant_id=manager_membership.tenant_id,
         )
 
     assert not User.objects.filter(email="manager02@me.me").exists()
@@ -122,14 +119,15 @@ def test_provisioning_manager_cannot_create_manager(manager_membership, tenant_c
 def test_provisioning_cashier_cannot_create_member(cashier_membership, tenant_context):
     tenant_context(cashier_membership.tenant_id)
 
-    with pytest.raises(PermissionDenied):
+    with pytest.raises(BusinessRuleViolation):
         staff_provising_orchestrator(
             actor_membership=cashier_membership,
             email="nottoday@me.me",
             password='don"t you dare',
             full_name="enzo_maresca",
             role=TenantMembership.Role.CASHIER,
-            current_tenant_id=cashier_membership.tenant_id,
         )
 
     assert not User.objects.filter(email="nottoday@me.me").exists()
+
+

@@ -32,12 +32,10 @@ from .serializers import (
     AdminTenantMemberDetailSerializer,
     CustomTokenObatinPairSerializer,
     CustomTokenRefreshSerializer,
-    StaffMemberSerializer,
     StaffPatchSerializer,
     StaffRoleSerializer,
     TenantMemberDetailSerializer,
     TenantMemberFilterSerializer,
-    TenantTimezonePatchSerializer,
 )
 
 
@@ -184,44 +182,34 @@ class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
         return get_membership_service(tenant_id=get_current_tenant(), role=role)
 
 
-class StaffViewSet(viewsets.ModelViewSet):
+class StaffPatchAPIView(APIView):
 
-    # ADA BUG DI URL PATCH-STAFF, KALO PAKE PUT DAN ADA PKNYA KELUAR ROLE DARI SI TENANTMEMBERSHIP ITUU
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
-    # pasang permission
-    permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
+    def patch(self, pk, request):
+        input_serializer = StaffPatchSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
 
-    # pasang serializer
-    serializer_class = StaffPatchSerializer
+        validated_data = input_serializer.validated_data
 
-    def get_queryset(self):
-
-        return TenantMembership.objects.filter(tenant=get_current_tenant())
-
-    def partial_update(self, request, *args, **kwargs):
-        # 1. Ambil object target
-        target_membership = self.get_object()
-
-        # 2. Validasi request
-        serializer = self.get_serializer(
-            target_membership,
-            data=request.data,
-            partial=True,
+        actor_membership = get_current_active_membership(
+            user=request.user,
+            tenant_id=get_current_tenant(),
         )
-        serializer.is_valid(raise_exception=True)
 
-        # 3. Panggil service
-        updated_membership = patch_staff_service(
-            actor=request.user,
+        target_membership = get_object_or_404(
+            TenantMembership, pk=pk, tenant_id=get_current_tenant()
+        )
+
+        patch_staff = patch_staff_service(
+            actor_membership=actor_membership,
             target_membership=target_membership,
-            validated_data=serializer.validated_data,
+            validated_data=validated_data,
         )
 
-        # 4. Serializer untuk response
-        response_serializer = TenantMemberDetailSerializer(updated_membership)
+        output_serializer = TenantMemberDetailSerializer(patch_staff)
 
-        # 5. Return response
-        return Response(response_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
 
 
 class RemoveMemberView(APIView):
