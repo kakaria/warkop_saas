@@ -416,7 +416,9 @@ def list_order_service(actor_membership: TenantMembership) -> QuerySet[Order]:
     if actor_membership.role not in ALLOWED_FETCH_ORDER_ROLES:
         raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
-    return Order.objects.filter(tenant_id=actor_membership.tenant_id)
+    return Order.objects.filter(tenant_id=actor_membership.tenant_id).order_by(
+        "-created_at"
+    )
 
 
 def order_paid_service(actor_membership: TenantMembership, order_id: int) -> Order:
