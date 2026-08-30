@@ -66,7 +66,6 @@ class OrderCreateSerializer(serializers.Serializer):
     )
 
     def validate_items(self, value):
-
         # cek duplicate product
         product_ids = [item["product_id"] for item in value]
 
@@ -77,7 +76,6 @@ class OrderCreateSerializer(serializers.Serializer):
         return value
 
 
-# serializer untuk convert data menjadi JSON (output serializer)
 class OrderItemDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
