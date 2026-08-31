@@ -1,9 +1,10 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions, status, views, viewsets
+from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
@@ -20,7 +21,7 @@ from tenants.serializers import (
 )
 from tenants.services import (
     get_current_active_membership,
-    get_membership_service,
+    get_membership_list_service,
     patch_staff_service,
     public_onboarding_orchestrator,
     remove_member_from_tenant_service,
@@ -29,11 +30,9 @@ from tenants.services import (
 )
 
 from .serializers import (
-    AdminTenantMemberDetailSerializer,
     CustomTokenObatinPairSerializer,
     CustomTokenRefreshSerializer,
     StaffPatchSerializer,
-    StaffRoleSerializer,
     TenantMemberDetailSerializer,
     TenantMemberFilterSerializer,
 )
@@ -83,7 +82,7 @@ class StaffProvisionView(views.APIView):
     untuk owner/manager nambahin staff baru (cashier/manager) ke tenant mereka
     """
 
-    permission_classes = [IsTenantManagerOrOwner]
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
     def post(self, request, *args, **kwargs):
         # panggil serializer
@@ -97,7 +96,6 @@ class StaffProvisionView(views.APIView):
             user=request.user,
             tenant_id=get_current_tenant(),
         )
-        print(actor.id)
 
         # panggil service (buat naro staff ke tenant saat ini)
         staff_user = staff_provising_orchestrator(
@@ -106,7 +104,6 @@ class StaffProvisionView(views.APIView):
             password=data["password"],
             full_name=data["full_name"],
             role=data["role"],
-            current_tenant_id=get_current_tenant(),
         )
 
         # response
@@ -136,50 +133,29 @@ class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
 
-class AdminViewMember(viewsets.ReadOnlyModelViewSet):
 
-    serializer_class = AdminTenantMemberDetailSerializer
+class TenantMemberListAPIView(ListAPIView):
 
-    # override function
-    def get_queryset(self):
-        return TenantMembership.objects_global.all()
-
-
-class StaffRoleViewSet(viewsets.ReadOnlyModelViewSet):
-
-    # pasang permission
-    permission_classes = [IsTenantManagerOrOwner]
-
-    # pasang serializer
-    serializer_class = StaffRoleSerializer
-
-    # override function
-    def get_queryset(self):
-        return get_user_role_list_service()
-
-
-class TenantMemberViewSet(viewsets.ReadOnlyModelViewSet):
-
-    # panggil permission
     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
 
-    # panggil serializer
     serializer_class = TenantMemberDetailSerializer
 
-    # override
     def get_queryset(self):
+
+        actor_membership = get_current_active_membership(
+            user=self.request.user,
+            tenant_id=get_current_tenant()
+        )
+
         # panggil serializer buat filter parameter
         filter_serializer = TenantMemberFilterSerializer(
             data=self.request.query_params  # ambil data dari input url (?=role)
         )
-        # udah dapet datanya, kita validasi
         filter_serializer.is_valid(raise_exception=True)
 
-        # baca value role dari filter_serializer
         role = filter_serializer.validated_data.get("role")
 
-        # panggil si service
-        return get_membership_service(tenant_id=get_current_tenant(), role=role)
+        return get_membership_list_service(actor_membership=actor_membership, role=role)
 
 
 class StaffPatchAPIView(APIView):
