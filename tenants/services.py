@@ -116,14 +116,22 @@ def get_user_tenant_claim_service(user) -> dict:
     return {"tenant_id": None, "tenant_name": None, "role": None}
 
 
-# service untuk ngambil data staff
-def get_membership_service(
-    tenant_id: int, role: str | None
+def get_membership_list_service(
+    actor_membership: TenantMembership, role: str | None = None
 ) -> QuerySet[TenantMembership]:
+
+    # authorization
+    if actor_membership.role not in [
+        TenantMembership.Role.OWNER,
+        TenantMembership.Role.MANAGER,
+    ]:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
     # bikin querynya
     queryset = (
-        TenantMembership.objects.filter(tenant_id=tenant_id)
+        TenantMembership.objects.filter(
+            tenant_id=actor_membership.tenant_id, left_at__isnull=True
+        )
         .select_related("user", "tenant")
         .order_by("user")
     )

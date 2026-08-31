@@ -7,7 +7,7 @@ from rest_framework_simplejwt.serializers import (
 from rest_framework_simplejwt.tokens import AccessToken
 
 from tenants.dto import UpdateTimezoneDTO
-from tenants.models import Tenant, TenantMembership
+from tenants.models import TenantMembership
 from tenants.services import get_user_tenant_claim_service
 
 User = get_user_model()
@@ -129,17 +129,6 @@ class StaffMemberSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "role"]
 
 
-class StaffRoleSerializer(serializers.ModelSerializer):
-
-    # fields yang divalidasi
-    email = serializers.EmailField(source="user.email")
-
-    class Meta:
-        model = TenantMembership
-        fields = ["email", "role"]
-        read_only_fields = ["email", "role"]
-
-
 class TenantMemberFilterSerializer(
     serializers.Serializer
 ):  # buat validasi filter parameter
@@ -161,9 +150,9 @@ class TenantMemberDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantMembership
         fields = ["id", "user_id", "full_name", "email", "tenant_name", "role"]
+        read_only_fiels = fields
 
 
-# SERIALIZER UNTUK PATCH
 class StaffPatchSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(
         required=False, choices=TenantMembership.Role.choices
@@ -172,28 +161,6 @@ class StaffPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantMembership
         fields = ["role"]
-
-
-class AdminTenantMemberDetailSerializer(serializers.ModelSerializer):
-
-    # ambil field yang bukan dari table TenantMembership
-    email = serializers.EmailField(source="user.email", read_only=True)
-    full_name = serializers.CharField(source="user.full_name", read_only=True)
-    user_id = serializers.IntegerField(source="user.id", read_only=True)
-    tenant_name = serializers.CharField(source="tenant.name", read_only=True)
-    tenant_id = serializers.IntegerField(source="tenant.id", read_only=True)
-
-    class Meta:
-        model = TenantMembership
-        fields = [
-            "id",
-            "user_id",
-            "full_name",
-            "email",
-            "tenant_id",
-            "tenant_name",
-            "role",
-        ]
 
 
 class TenantTimezonePatchSerializer(serializers.Serializer):
