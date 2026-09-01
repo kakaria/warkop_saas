@@ -6,18 +6,17 @@ from tenants.services import remove_member_from_tenant_service
 
 
 @pytest.mark.django_db
-def test_owner_can_remove_cashier(owner_membership_a, cashier_membership, tenant_context):
+def test_owner_can_remove_cashier(
+    owner_membership_a, cashier_membership, tenant_context
+):
 
     # ==== ARRANGE
     tenant_context(owner_membership_a.tenant_id)
 
-    print(owner_membership_a.id)
-    print(cashier_membership.id)
-
     # ==== ACT
     # panggil service
     remove_member_from_tenant_service(
-        actor_membership_id=owner_membership_a.id,
+        actor_membership=owner_membership_a,
         target_membership_id=cashier_membership.id,
     )
 
@@ -40,7 +39,7 @@ def test_manager_can_remove_cashier(
 
     # ===== ACT
     remove_member_from_tenant_service(
-        actor_membership_id=manager_membership.id,
+        actor_membership=manager_membership,
         target_membership_id=cashier_membership.id,
     )
 
@@ -52,13 +51,15 @@ def test_manager_can_remove_cashier(
 
 
 @pytest.mark.django_db
-def test_manager_can_remove_owner(manager_membership, owner_membership_a, tenant_context):
+def test_manager_cannot_remove_owner(
+    manager_membership, owner_membership_a, tenant_context
+):
 
     tenant_context(manager_membership.tenant_id)
 
-    with pytest.raises(PermissionDenied):
+    with pytest.raises(BusinessRuleViolation):
         remove_member_from_tenant_service(
-            actor_membership_id=manager_membership.id,
+            actor_membership=manager_membership,
             target_membership_id=owner_membership_a.id,
         )
 
@@ -68,15 +69,15 @@ def test_manager_can_remove_owner(manager_membership, owner_membership_a, tenant
 
 
 @pytest.mark.django_db
-def test_cashier_can_remove_member(
+def test_cashier_cannot_remove_member(
     cashier_membership, owner_membership_a, manager_membership, tenant_context
 ):
 
     tenant_context(cashier_membership.tenant_id)
 
-    with pytest.raises(PermissionDenied):
+    with pytest.raises(BusinessRuleViolation):
         remove_member_from_tenant_service(
-            actor_membership_id=cashier_membership.id,
+            actor_membership=cashier_membership,
             target_membership_id=owner_membership_a.id,
         )
 
@@ -86,14 +87,16 @@ def test_cashier_can_remove_member(
 
 
 @pytest.mark.django_db
-def test_other_tenant_can_delete_member(owner_membership_b, manager_membership, tenant_context):
+def test_cannot_remove_member_from_other_tenant(
+    owner_membership_b, manager_membership, tenant_context
+):
 
     # isi tenant owner
     tenant_context(owner_membership_b.tenant_id)
 
     with pytest.raises(BusinessRuleViolation):
         remove_member_from_tenant_service(
-            actor_membership_id=owner_membership_b.id,
+            actor_membership=owner_membership_b,
             target_membership_id=manager_membership.id,
         )
 
