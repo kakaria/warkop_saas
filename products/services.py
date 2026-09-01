@@ -211,11 +211,7 @@ def list_stock_movement(actor_membership: TenantMembership) -> QuerySet[StockMov
     if actor_membership.role not in ALLOWED_PRODUCT_STOCK_MOVEMENT_ROLES:
         raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
-    stock_movement = StockMovement.objects.filter(
-        product_id__tenant_id=actor_membership.tenant_id
-    )
-
-    return stock_movement
+    return StockMovement.objects.filter(product__tenant_id=actor_membership.tenant_id)
 
 
 def fetch_stock_movement_product_service(
@@ -227,8 +223,11 @@ def fetch_stock_movement_product_service(
         raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
 
     # cek product
-    stock_movements = StockMovement.objects.filter(
+    if not Product.objects.filter(
+        id=product_id, tenant_id=actor_membership.tenant_id
+    ).exists():
+        raise ProductNotFoundError("Product tidak ditemukan!")
+    return StockMovement.objects.filter(
         product_id=product_id,
-    )
-
-    return stock_movements
+        product__tenant_id=actor_membership.tenant_id,
+    ).select_related("created_by")

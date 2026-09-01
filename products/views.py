@@ -30,7 +30,7 @@ from products.services import (
     list_stock_movement,
     unarchived_product_service,
 )
-from tenants.models import Tenant, TenantMembership
+from tenants.models import TenantMembership
 from tenants.permissions import IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner
 from tenants.services import get_current_active_membership
 
@@ -50,9 +50,6 @@ class ProductCreateAPIView(APIView):
 
         # ambil tenant_id
         tenant_id = get_current_tenant()
-
-        if tenant_id is None:
-            raise ValidationError("Tenant context is required!")
 
         # panggil CreateProductDTO
         dto = CreateProductDTO(
@@ -182,7 +179,7 @@ class StockMovementDetailAPIView(APIView):
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 
 
-class StockMovementListAPIView(APIView):
+class StockMovementByProductListAPIView(APIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
     def get(self, request):

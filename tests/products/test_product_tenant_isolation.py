@@ -22,7 +22,7 @@ def test_tenant_can_access_own_product(
 
 
 @pytest.mark.django_db
-def test_tenant_cannot_see_other_tenant_product(
+def test_product_tenant_respect_tenant_scope(
     owner_membership_a, productB, tenant_context
 ):
     # Arrange
@@ -32,7 +32,7 @@ def test_tenant_cannot_see_other_tenant_product(
     product = Product.objects.filter(id=productB.id)
 
     # Assert
-    assert product.count() == 0
+    assert not product.exists()
 
 
 @pytest.mark.django_db
@@ -42,9 +42,4 @@ def test_user_cannot_see_product_in_other_tenant(api_client, owner_user, tenantB
     url = reverse("products-list")
     response = api_client.get(url, HTTP_X_TENANT_ID=str(tenantB.id))
 
-    print(response.status_code)
-    print(response.data)
-    print(response.request)
-
     assert response.status_code == 403, response.data
-    assert response.status_code == 403
