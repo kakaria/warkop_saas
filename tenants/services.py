@@ -206,51 +206,34 @@ def patch_staff_service(
 
 
 def remove_member_from_tenant_service(
-    actor_membership_id: int, target_membership_id: int
+    actor_membership: TenantMembership, target_membership_id: int
 ) -> None:  # karena delete gak ngembaliin apapun
 
     with transaction.atomic():
 
-        print(actor_membership_id)
-        print(target_membership_id)
-
-        # ambil actor_membership (pake get() karena kita ngambil berdasarkan id membership)
-        try:
-            actor_membership = TenantMembership.objects.select_related(
-                "user", "tenant"
-            ).get(id=actor_membership_id)
-
-        except TenantMembership.DoesNotExist:
-            raise BusinessRuleViolation("Maaf member ini tidak ditemukan")
-
         # ambil target_membership
         try:
             target_membership = TenantMembership.objects.select_for_update().get(
-                id=target_membership_id
+                id=target_membership_id,
+                tenant_id=actor_membership.tenant_id,
             )
 
         except TenantMembership.DoesNotExist:
-            raise BusinessRuleViolation("Maaf member ini tidak ditemukan")
+            raise BusinessRuleViolation("Member tidak ditemukan")
 
         # cek apakah dia selain owner dan manager
         if actor_membership.role not in [
             TenantMembership.Role.OWNER,
             TenantMembership.Role.MANAGER,
         ]:
-            raise PermissionDenied(
-                "Maaf anda tidak punya hak untuk memecat member lain"
-            )
+            raise BusinessRuleViolation("Anda tidak memilik hak untuk melakukan ini")
 
         # cek udah dipecat apa belom
         if actor_membership.left_at is not None:
-            raise PermissionDenied("Maaf kamu sudah dipecat")
+            raise BusinessRuleViolation("Membership actor sudah tidak aktif")
 
         if target_membership.left_at is not None:
-            raise PermissionDenied("Maaf kamu sudah dipecat")
-
-        # cek apakah aktor dan target satu tenant
-        if target_membership.tenant_id != actor_membership.tenant_id:
-            raise PermissionDenied("Maaf ternyata kalian beda tenant")
+            raise BusinessRuleViolation("Membership target sudah tidak aktif")
 
         # cek bisnis rule
         is_delete_self = actor_membership.user_id == target_membership.user_id
@@ -259,31 +242,23 @@ def remove_member_from_tenant_service(
         if actor_membership.role == TenantMembership.Role.OWNER:
             # OWNER gak bisa apus dirinya sendiri
             if is_delete_self:
-                raise PermissionDenied(
-                    "Sebagai Owner, tidak bisa hapus diri anda sendiri"
-                )
+                raise BusinessRuleViolation("Owner tidak bisa hapus diri anda sendiri")
             # Owner gak bisa apus OWNER LAIN
             if target_membership.role == TenantMembership.Role.OWNER:
-                raise PermissionDenied(
-                    "Sebagai Owner, anda tidak bisa menghapus owner lain"
-                )
+                raise BusinessRuleViolation("Owner tidak bisa menghapus owner lain")
 
         # cek Manager
-        if actor_membership.role == TenantMembership.Role.MANAGER:
+        elif actor_membership.role == TenantMembership.Role.MANAGER:
             # MANAGER gak bisa apus dirinya sendiri
             if is_delete_self:
-                raise PermissionDenied(
-                    "Anda sebagai Manager, tidak bisa hapus diri anda sendiri"
-                )
+                raise BusinessRuleViolation("Manager, tidak bisa hapus diri sendiri")
             # kalo mau apus owner
             if target_membership.role == TenantMembership.Role.OWNER:
-                raise PermissionDenied(
-                    "Anda sebagai Manager, tidak bisa menghapus Owner"
-                )
+                raise BusinessRuleViolation("Manager, tidak bisa menghapus Owner")
             # kalo mau apus sesama manager
             if target_membership.role == TenantMembership.Role.MANAGER:
-                raise PermissionDenied(
-                    "Anda sebagai Manager, tidak bisa menghapus sesama Manager"
+                raise BusinessRuleViolation(
+                    "Manager, tidak bisa menghapus sesama Manager"
                 )
 
         # apply perubahan (soft delete)

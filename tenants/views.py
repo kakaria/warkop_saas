@@ -1,10 +1,10 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.thread_local import get_current_tenant
@@ -133,7 +133,6 @@ class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
 
-
 class TenantMemberListAPIView(ListAPIView):
 
     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
@@ -143,8 +142,7 @@ class TenantMemberListAPIView(ListAPIView):
     def get_queryset(self):
 
         actor_membership = get_current_active_membership(
-            user=self.request.user,
-            tenant_id=get_current_tenant()
+            user=self.request.user, tenant_id=get_current_tenant()
         )
 
         # panggil serializer buat filter parameter
@@ -193,24 +191,18 @@ class RemoveMemberView(APIView):
 
     # override
     def delete(self, request, pk, format=None):
-        # ambil object target
         target_membership = get_object_or_404(
             TenantMembership, id=pk, tenant_id=get_current_tenant(), left_at=None
         )
 
-        # ambil object actor (pake service mini)
-        try:
-            actor_membership = get_current_active_membership(
-                user=request.user,
-                tenant_id=get_current_tenant(),
-            )
-            print(actor_membership)
-        except TenantMembership.DoesNotExist:
-            raise NotFound("Membership tidak ditemukan")
+        actor_membership = get_current_active_membership(
+            user=request.user,
+            tenant_id=get_current_tenant(),
+        )
 
         # panggil service
         remove_member_from_tenant_service(
-            actor_membership_id=actor_membership.id,
+            actor_membership=actor_membership,
             target_membership_id=target_membership.id,
         )
 
