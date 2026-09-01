@@ -5,13 +5,14 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, close_old_connections
 
 from core.exceptions import (
+    BusinessRuleViolation,
     InsufficientStockError,
     ProductNotFoundError,
     StockMovementCreationError,
 )
 from products.models import Product, ReasonChoices, StockMovement
 from products.serializers import StockAdjustmentSerializer
-from products.services import adjust_stock_service
+from products.services import adjust_stock_service, fetch_stock_movement_product_service
 
 
 @pytest.mark.django_db
@@ -200,7 +201,6 @@ def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
         "notes": "",
     }
 
-
     with pytest.raises(ProductNotFoundError):
         adjust_stock_service(
             actor_membership=owner_membership_a,
@@ -216,6 +216,38 @@ def test_owner_tenant_a_cannot_adjust_stock_tenant_b(
         product_id=productD.id,
         reason=ReasonChoices.RESTOCK,
     ).exists()
+
+
+@pytest.mark.django_db
+def test_fetch_stock_movement_product_service_respect_tenant_scope(
+    owner_membership_a, tenant_context, product, productD
+):
+    # Arrange
+    tenant_context(owner_membership_a.tenant_id)
+
+    # bikin stockmovement
+    stock_movement = StockMovement.objects.create(
+        product_id=product.id,
+        reason=ReasonChoices.RESTOCK,
+        action=StockMovement.Action.ADD,
+        quantity=5,
+        notes="",
+        created_by=owner_membership_a.user,
+    )
+
+    # Act
+    result_tenant_a = fetch_stock_movement_product_service(
+        actor_membership=owner_membership_a, product_id=product.id
+    )
+
+    assert result_tenant_a.count() == 1
+    assert result_tenant_a.first().id == stock_movement.id
+
+    with pytest.raises(ProductNotFoundError) as exc:
+        fetch_stock_movement_product_service(
+            actor_membership=owner_membership_a, product_id=productD.id
+        )
+    assert "tidak ditemukan" in str(exc.value).lower()
 
 
 @pytest.mark.django_db
