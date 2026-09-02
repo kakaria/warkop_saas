@@ -158,7 +158,7 @@ class TenantMemberListAPIView(ListAPIView):
 
 class StaffPatchAPIView(APIView):
 
-    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantOwner]
 
     def patch(self, pk, request):
         input_serializer = StaffPatchSerializer(data=request.data)
