@@ -149,40 +149,24 @@ def patch_staff_service(
     validated_data: dict,
 ) -> TenantMembership:
 
-    # authorization
-    if actor_membership.left_at is not None:
-        raise BusinessRuleViolation("Anda bukan member aktif")
-
-    if actor_membership.tenant_id != target_membership.tenant_id:
-        raise BusinessRuleViolation("Anda tidak memiliki hak melakukan ini!")
-
-    if actor_membership.role not in [
-        TenantMembership.Role.OWNER,
-        TenantMembership.Role.MANAGER,
-    ]:
-        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan ini!")
-
     # ambil key dari dict validated_data
     new_role = validated_data.get("role")
 
     if not new_role or target_membership.role == new_role:
         return target_membership
 
+    # authorization
+    if actor_membership.left_at is not None:
+        raise BusinessRuleViolation("Anda bukan member aktif")
+
+    if actor_membership.tenant_id != target_membership.tenant_id:
+        raise BusinessRuleViolation("Anda tidak memiliki hak melakukan itu!")
+
+    if actor_membership.role != TenantMembership.Role.OWNER:
+        raise BusinessRuleViolation("Anda tidak memiliki hak untuk melakukan itu!")
+
     # variable kalo id actor dan target sama
     is_self_edit = actor_membership.id == target_membership.id
-
-    # CEK untuk Manager
-    if actor_membership.role == TenantMembership.Role.MANAGER:
-        # inget! manager cuma bisa edit staff Kasir, jadi selain kasir tolak aja
-        if not is_self_edit and target_membership.role != TenantMembership.Role.CASHIER:
-            raise BusinessRuleViolation("Anda manager, hanya bisa edit staff kasir")
-
-        # biar manager gak bisa edit dirinya sendiri (role)
-        if is_self_edit and new_role != target_membership.role:
-            raise BusinessRuleViolation("Anda gak bisa edit role anda")
-
-        if not is_self_edit and new_role != TenantMembership.Role.CASHIER:
-            raise BusinessRuleViolation("Anda cuma bisa angkat user jadi kasir")
 
     # CEK untuk OWNER
     if actor_membership.role == TenantMembership.Role.OWNER:

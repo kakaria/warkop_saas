@@ -187,7 +187,7 @@ class StaffPatchAPIView(APIView):
 
 
 class RemoveMemberView(APIView):
-    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+    permission_classes = [IsAuthenticatedAndHasTenant, IsTenantOwner]
 
     # override
     def delete(self, request, pk, format=None):
