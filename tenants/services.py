@@ -149,12 +149,6 @@ def patch_staff_service(
     validated_data: dict,
 ) -> TenantMembership:
 
-    # ambil key dari dict validated_data
-    new_role = validated_data.get("role")
-
-    if not new_role or target_membership.role == new_role:
-        return target_membership
-
     # authorization
     if actor_membership.left_at is not None:
         raise BusinessRuleViolation("Anda bukan member aktif")
@@ -168,16 +162,18 @@ def patch_staff_service(
     # variable kalo id actor dan target sama
     is_self_edit = actor_membership.id == target_membership.id
 
-    # CEK untuk OWNER
-    if actor_membership.role == TenantMembership.Role.OWNER:
-        # cek kalo owner mau ngedit dirinya sendiri
-        if is_self_edit and new_role in [
-            TenantMembership.Role.MANAGER,
-            TenantMembership.Role.CASHIER,
-        ]:
-            raise BusinessRuleViolation(
-                "Anda tidak boleh menurunkan jabatan anda sendiri"
-            )
+    # ambil key dari dict validated_data
+    new_role = validated_data.get("role")
+
+    # cek kalo owner mau ngedit dirinya sendiri
+    if is_self_edit and new_role in [
+        TenantMembership.Role.MANAGER,
+        TenantMembership.Role.CASHIER,
+    ]:
+        raise BusinessRuleViolation("Anda tidak boleh menurunkan jabatan anda sendiri")
+
+    if not new_role or target_membership.role == new_role:
+        return target_membership
 
     # apply perubahan
     for key, value in validated_data.items():
