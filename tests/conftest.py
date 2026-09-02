@@ -1,4 +1,5 @@
 import pytest
+from django.utils.timezone import now
 from rest_framework.test import APIClient
 
 from core.thread_local import clear_thread_local, set_current_tenant
@@ -56,6 +57,16 @@ def owner_membership_b(
 
 
 @pytest.fixture
+def owner_membership_a_inactive(tenantA, owner_user):
+    return TenantMembership.objects.create(
+        tenant=tenantA,
+        user=owner_user,
+        role=TenantMembership.Role.OWNER,
+        left_at=now(),
+    )
+
+
+@pytest.fixture
 def cashier_user():  # karena pake custom manager, jadinya pake create_user
     return User.objects.create_user(
         email="cashier1@test.com", password="cashier-213", full_name="cashier1"
@@ -85,6 +96,16 @@ def manager_user():
 def manager_membership(tenantA, manager_user):
     return TenantMembership.objects.create(
         tenant=tenantA,
+        user=manager_user,
+        role=TenantMembership.Role.MANAGER,
+        left_at=None,
+    )
+
+
+@pytest.fixture
+def manager_membership_b(tenantB, manager_user):
+    return TenantMembership.objects.create(
+        tenant=tenantB,
         user=manager_user,
         role=TenantMembership.Role.MANAGER,
         left_at=None,
