@@ -1,6 +1,5 @@
-
-import time
 import threading
+import time
 
 import pytest
 from django.core.exceptions import PermissionDenied
@@ -188,9 +187,6 @@ def test_order_void_service_failed_when_stock_movement_failed_to_create(
 
     for product_id, initial_stock in initial_stocks.items():
         product = Product.global_objects.get(pk=product_id)
-
-        print(f"product.stock: {product.stock}")
-
         assert product.stock == initial_stock
 
     for product_id, current_stock_movement in initial_stock_movements.items():
@@ -362,10 +358,6 @@ def test_concurrent_void_and_stock_adjustment_preserve_product(
     thread_void_order.join()
     thread_stock_adjustment.join()
 
-    print("hasil balapan")
-    print(f"pemenang pertama: {execute_result[0]}")
-    print(f"pemenang kedua: {execute_result[1]}")
-
     # assert
     assert not error_results
     assert len(success_results) == 2
@@ -375,10 +367,6 @@ def test_concurrent_void_and_stock_adjustment_preserve_product(
     assert order.status == Order.Status.VOID
 
     product.refresh_from_db()
-
-    print(f"JUMLAH STOK AKHIR: {product.stock}")
-    print(f"quantity: {order_item.quantity}")
-    print(f"stock adjustment: {adjustment_data['quantity']}")
 
     # cek jumlah stock product udah balik ke awal dan dikurang sama adjustment
     assert (

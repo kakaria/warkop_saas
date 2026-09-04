@@ -105,8 +105,6 @@ def adjust_stock_service(
             if difference < 0:
                 action = StockMovement.Action.DEDUCT
                 quantity = abs(difference)
-                print(action)
-
             else:
                 action = StockMovement.Action.ADD
                 quantity = difference
@@ -127,7 +125,6 @@ def adjust_stock_service(
 
         # save perubahan stock terbaru
         product.save(update_fields=["stock"])
-        print(f"action: {action}")
         # bikin stockmovement
         new_stock_movement = StockMovement.objects.create(
             product=product,

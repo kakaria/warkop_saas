@@ -62,8 +62,6 @@ def test_product_sales_service_success_include_zero_sales(
         now=datetime(2026, 8, 27, 10, 0, tzinfo=timezone.utc),
     )
 
-    print(f"result: {result}")
-
     report = {item["product_id"]: item for item in result}
 
     assert report[product_sold.id]["quantity_sold"] == 1
@@ -181,7 +179,7 @@ def test_today_product_sales_is_tenant_scoped(
         sub_total=5000,
     )
 
-     # bikin order b
+    # bikin order b
     order_b = Order.objects.create(
         tenant_id=tenantB.id,
         created_by=owner_membership_b.user,
@@ -209,7 +207,6 @@ def test_today_product_sales_is_tenant_scoped(
     )
 
     product_ids = {item["product_id"] for item in result}
-
 
     report = {item["product_id"]: item for item in result}
 

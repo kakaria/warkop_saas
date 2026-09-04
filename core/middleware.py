@@ -9,9 +9,6 @@ class TenantMiddleware:
         x_id = request.headers.get("X-Tenant-Id") or request.META.get(
             "HTTP_X_TENANT_ID"
         )
-
-        print(f"debug: Middleware mendeteksi Tenant ID -> {x_id}")
-
         set_current_tenant(x_id)
 
         try:
