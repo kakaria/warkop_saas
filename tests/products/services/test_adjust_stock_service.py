@@ -38,7 +38,6 @@ def test_adjust_stock_add_success(manager_membership, product, tenant_context):
 
     product.refresh_from_db()
     movement.refresh_from_db()
-    print(f"hasil akhir stock product: {product.stock}")
 
     assert product.stock == initial_stock + quantity
     assert movement.product_id == product.id
@@ -72,7 +71,6 @@ def test_adjust_stock_add_failed(manager_membership, product, tenant_context):
         )
 
     product.refresh_from_db()
-    print(f"hasil akhir stock product: {product.stock}")
 
     assert product.stock == initial_stock
 
@@ -101,7 +99,6 @@ def test_adjust_stock_deduct_success(owner_membership_a, product, tenant_context
 
     product.refresh_from_db()
     movement.refresh_from_db()
-    print(f"hasil akhir stock product: {product.stock}")
 
     # Assert
     assert product.stock == initial_stock - quantity

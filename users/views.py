@@ -44,6 +44,5 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
         # panggil serializer untuk response
         response_serializer = ProfileDetailSerializer(updated_user)
-        print(response_serializer.data)
 
         return Response(response_serializer.data)

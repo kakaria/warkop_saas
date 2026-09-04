@@ -45,7 +45,6 @@ def test_manager_can_remove_cashier(
 
     # ==== ASSERT
     # refresh database
-    print("udah disini")
     cashier_membership.refresh_from_db()
     assert cashier_membership.left_at is not None
 

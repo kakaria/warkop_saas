@@ -19,8 +19,6 @@ def test_order_paid_service_success(
     order = order_pending_owner_a
     initial_order_status = order.status
 
-    print(f"debug: {initial_order_status}")
-
     order_paid = order_paid_service(
         actor_membership=owner_membership_a,
         order_id=order.id,
@@ -170,5 +168,4 @@ def test_order_paid_concurrent_only_one_success(
 
     assert isinstance(error_results[0], BusinessRuleViolation)
 
-    print(f"debug: status = {order.status}")
     assert order.status == Order.Status.PAID
