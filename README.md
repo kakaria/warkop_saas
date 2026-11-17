@@ -180,4 +180,3 @@ The implemented scope covers:
 * timezone-aware operational reports
 
 The project deliberately excludes concerns that are outside its engineering focus, such as payment gateway integration, asynchronous infrastructure, distributed services, and real-time communication.
-
