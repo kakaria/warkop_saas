@@ -1,6 +1,5 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, views
-from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -134,7 +133,6 @@ class CustomTokenRefreshView(TokenRefreshView):
 
 
 class TenantMemberListAPIView(ListAPIView):
-
     permission_classes = [IsAuthenticated, IsTenantManagerOrOwner]
 
     serializer_class = TenantMemberDetailSerializer
@@ -157,10 +155,9 @@ class TenantMemberListAPIView(ListAPIView):
 
 
 class StaffPatchAPIView(APIView):
-
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantOwner]
 
-    def patch(self, pk, request):
+    def patch(self, request, pk):
         input_serializer = StaffPatchSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
 
