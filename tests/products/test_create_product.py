@@ -39,10 +39,7 @@ def test_create_product_failed_when_user_is_cashier(cashier_membership, tenant_c
     )
     # Act
     with pytest.raises(PermissionDenied):
-        create_product_service(
-            actor_membership=cashier_membership,
-            data=data
-        )
+        create_product_service(actor_membership=cashier_membership, data=data)
 
     assert Product.objects.filter(tenant_id=cashier_membership.tenant_id).count() == 0
 

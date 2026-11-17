@@ -1,20 +1,21 @@
-
 from django.db import transaction
+
 from .models import User
 
 
 def create_user_account_service(*, email: str, password: str, full_name: str):
     """
-            BIKIN AKUN USER doang
+    BIKIN AKUN USER doang
     """
 
     user = User.objects.create_user(
         email=email,
         password=password,
         full_name=full_name,
-    ) # type: ignore
+    )  # type: ignore
 
     return user
+
 
 @transaction.atomic
 def patch_user_service(user: User, validated_data: dict) -> User:
