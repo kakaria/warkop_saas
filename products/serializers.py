@@ -10,7 +10,6 @@ class ProductCreateSerializer(serializers.Serializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Product
         fields = [
@@ -49,7 +48,7 @@ class ProductBasicPatchSerializer(serializers.ModelSerializer):
         duplicate_exists = (
             Product.objects.filter(
                 tenant_id=product.tenant_id,
-                name=value,  # biar "Kopi" = "kopi"
+                name__iexact=value,  # biar "Kopi" == "kopi"
                 is_archived=False,
             )
             .exclude(  # kecuali product ini (yang lagi mau di patch)
@@ -65,7 +64,6 @@ class ProductBasicPatchSerializer(serializers.ModelSerializer):
 
 
 class StockAdjustmentSerializer(serializers.Serializer):
-
     action = serializers.ChoiceField(
         choices=StockMovement.Action.choices, required=False
     )
