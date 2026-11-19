@@ -13,6 +13,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+RUN chmod +x /app/entrypoint.sh
+
 # collectstatic memuat settings, jadi butuh env dummy. Nilai ini hanya
 # berlaku untuk perintah ini dan tidak tersimpan di image.
 
@@ -24,4 +26,6 @@ USER app
 
 EXPOSE 8000
 
+
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
