@@ -1,3 +1,5 @@
+![CI](https://github.com/kakaria/warkop_saas/actions/workflows/ci.yml/badge.svg)
+
 ## Overview
 
 Warkop SaaS is a Django and Django REST Framework backend project designed as a multi-tenant management system for warkop (coffee shop) businesses.
