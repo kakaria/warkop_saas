@@ -99,7 +99,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ["id", "status", "created_at"]
-        read_only_fiels = fields
+        read_only_fields = fields
 
 
 # serializer input void order
