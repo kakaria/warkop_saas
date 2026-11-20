@@ -75,8 +75,18 @@ class OrderCreateAPIView(APIView):
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="Show list of orders",
+        description="Returns a list of orders for current tenant. Only accessible by tenant managers or owners",
+        parameters=[TENANT_HEADER],
+        responses={200: OrderListSerializer},
+    )
+)
 class OrderListAPIView(ListAPIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    serializer_class = OrderListSerializer
 
     def get_queryset(self):
         actor_membership = get_current_active_membership(
