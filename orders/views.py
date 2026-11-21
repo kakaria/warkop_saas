@@ -1,8 +1,10 @@
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.openapi import TENANT_HEADER
 from core.thread_local import get_current_tenant
 from orders.dto import CreateOrderDTO, OrderItemDTO, VoidOrderDTO
 from orders.services import (
@@ -25,9 +27,20 @@ from .serializers import (
 
 
 class OrderCreateAPIView(APIView):
-
     permission_classes = [IsAuthenticatedAndHasTenant]
 
+    @extend_schema(
+        summary="Create an order",
+        description="Creates an order from a list of product IDs and quantities.",
+        parameters=[TENANT_HEADER],
+        request=OrderCreateSerializer,
+        responses={
+            201: OrderDetailSerializer,
+            400: OpenApiResponse(
+                description="Invalid input, e.g. empty items or a duplicated product."
+            ),
+        },
+    )
     def post(self, request, *args, **kwargs) -> Response:
         # panggil input serializer
         input_serializer = OrderCreateSerializer(data=request.data)
@@ -62,8 +75,18 @@ class OrderCreateAPIView(APIView):
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        summary="Show list of orders",
+        description="Returns a list of orders for current tenant. Only accessible by tenant managers or owners",
+        parameters=[TENANT_HEADER],
+        responses={200: OrderListSerializer},
+    )
+)
 class OrderListAPIView(ListAPIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
+
+    serializer_class = OrderListSerializer
 
     def get_queryset(self):
         actor_membership = get_current_active_membership(
@@ -79,6 +102,13 @@ class OrderListAPIView(ListAPIView):
 class OrderDetailAPIView(APIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
+    @extend_schema(
+        summary="Show order detail",
+        parameters=[TENANT_HEADER],
+        responses={
+            200: OrderDetailSerializer,
+        },
+    )
     def get(
         self,
         request,
@@ -102,6 +132,16 @@ class OrderDetailAPIView(APIView):
 class OrderVoidAPIView(APIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
+    @extend_schema(
+        summary="Void an order",
+        description="Marks the order as voided.",
+        parameters=[TENANT_HEADER],
+        request=OrderVoidSerializer,
+        responses={
+            200: OrderVoidSerializer,
+            400: OpenApiResponse(description="Invalid input"),
+        },
+    )
     def post(self, request, order_id):
         input_serializer = OrderVoidSerializer(data=request.data)
 
@@ -135,6 +175,14 @@ class OrderVoidAPIView(APIView):
 class OrderPaidAPIView(APIView):
     permission_classes = [IsAuthenticatedAndHasTenant, IsTenantManagerOrOwner]
 
+    @extend_schema(
+        summary="Marks an order as paid",
+        parameters=[TENANT_HEADER],
+        request=None,
+        responses={
+            201: OrderDetailSerializer,
+        },
+    )
     def post(self, request, order_id):
         input_serializer = OrderPaidSerializer(data=request.data)
 

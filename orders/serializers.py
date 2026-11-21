@@ -1,10 +1,5 @@
-from urllib import request
-
-from django.db.migrations import serializer
-from django.views import View
 from rest_framework import serializers
 
-from core.thread_local import get_current_tenant
 from orders.dto import VoidOrderDTO
 from products.models import ReasonChoices
 
@@ -104,7 +99,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ["id", "status", "created_at"]
-        read_only_fiels = fields
+        read_only_fields = fields
 
 
 # serializer input void order

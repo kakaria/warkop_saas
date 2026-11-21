@@ -2,17 +2,18 @@ import pytest
 
 from core.exceptions import BusinessRuleViolation
 from orders.services import fetch_order_service
-from orders.models import Order
+
 
 @pytest.mark.django_db
-def test_fetch_order_service_success(owner_membership_a, tenant_context, order_pending_owner_a):
+def test_fetch_order_service_success(
+    owner_membership_a, tenant_context, order_pending_owner_a
+):
     # Arrange
     tenant_context(owner_membership_a.tenant_id)
 
     # Act
     order = fetch_order_service(
-        actor_membership=owner_membership_a,
-        order_id=order_pending_owner_a.id
+        actor_membership=owner_membership_a, order_id=order_pending_owner_a.id
     )
 
     # Assert
