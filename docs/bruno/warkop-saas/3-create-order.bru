@@ -1,0 +1,41 @@
+meta {
+  name: 3. Create order
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/orders/create-order/
+  body: json
+  auth: bearer
+}
+
+headers {
+  X-Tenant-Id: {{tenantIdSenja}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "items": [
+      { "product_id": {{productId}}, "quantity": 1 }
+    ]
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setVar("orderId", res.body.id);
+}
+
+tests {
+  test("order starts as PENDING", function () {
+    expect(res.body.status).to.equal("PENDING");
+  });
+}

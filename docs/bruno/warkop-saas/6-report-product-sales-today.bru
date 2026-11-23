@@ -1,0 +1,23 @@
+meta {
+  name: 6. Report: product sales today
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reports/products/today/
+  body: none
+  auth: bearer
+}
+
+headers {
+  X-Tenant-Id: {{tenantIdSenja}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+assert {
+  res.status: eq 200
+}
