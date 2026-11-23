@@ -1,0 +1,38 @@
+meta {
+  name: 2. List products
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/
+  body: none
+  auth: bearer
+}
+
+headers {
+  X-Tenant-Id: {{tenantIdSenja}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  const items = Array.isArray(res.body) ? res.body : res.body.results;
+  const kopi = items.find((p) => p.name === "Kopi Susu");
+  if (kopi) {
+    bru.setVar("productId", kopi.id);
+  }
+}
+
+tests {
+  test("seeded product exists", function () {
+    const items = Array.isArray(res.body) ? res.body : res.body.results;
+    expect(items.some((p) => p.name === "Kopi Susu")).to.equal(true);
+  });
+}

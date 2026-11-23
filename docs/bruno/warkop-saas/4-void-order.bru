@@ -1,0 +1,36 @@
+meta {
+  name: 4. Void order
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/orders/{{orderId}}/void-order/
+  body: json
+  auth: bearer
+}
+
+headers {
+  X-Tenant-Id: {{tenantIdSenja}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "reason": "VOID",
+    "notes": "Demo: customer cancelled"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("order is VOID", function () {
+    expect(res.body.status).to.equal("VOID");
+  });
+}

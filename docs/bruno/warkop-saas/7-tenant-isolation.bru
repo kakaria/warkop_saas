@@ -1,0 +1,23 @@
+meta {
+  name: 7. Tenant isolation: Senja owner reads Kopi Pagi (must be 403)
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/
+  body: none
+  auth: bearer
+}
+
+headers {
+  X-Tenant-Id: {{tenantIdPagi}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+assert {
+  res.status: eq 403
+}
